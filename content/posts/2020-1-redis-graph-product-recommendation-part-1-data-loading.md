@@ -77,8 +77,8 @@ and edges programmatically and is representative of what you might do in actual 
 to CSV files to be used by RedisGraph's [bulk load](https://github.com/RedisGraph/redisgraph-bulk-loader) utility. The following are the links
 to the two utilities:
 
-- [create local commerce graph](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/master/1-create_local_commerce_graph.groovy)
-- [create CSVs for bulk import](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/master/2-create-csvs-for-bulk-import.groovy)
+- [create local commerce graph](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/beaafc2f003bb6f41b68c9211814c98951403f28/1-create_local_commerce_graph.groovy)
+- [create CSVs for bulk import](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/beaafc2f003bb6f41b68c9211814c98951403f28/2-create-csvs-for-bulk-import.groovy)
 
 ### Graph Generation
 
