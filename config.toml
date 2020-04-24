@@ -1,0 +1,60 @@
+baseurl = "/"
+title = "Joshua W Durbin"
+theme = "hugo-coder"
+languagecode = "en"
+defaultcontentlanguage = "en"
+
+googleAnalytics = "UA-10932654-1"
+
+paginate = 20
+canonifyurls = true
+
+pygmentsstyle = "bw"
+pygmentscodefences = true
+pygmentscodefencesguesssyntax = true
+
+disqusShortname = "joshdurbin"
+
+[params]
+    author = "Joshua W Durbin"
+    keywords = "go,java,cms,groovy,devops,cloud,engineering,bicyling,bikes,diy,privacy,security"
+    avatarurl = "img/jdurbin_logo.jpg"
+
+    favicon_32 = "/img/favicon-32x32.png"
+    favicon_16 = "/img/favicon-16x16.png"
+
+    hidecredits = true
+    hidecopyright = false
+
+    rtl = false
+
+    math = true
+    custom_css = ["css/custom.css"]
+
+# Social links
+[[params.social]]
+    name = "Github"
+    icon = "fab fa-github fa-2x"
+    weight = 1
+    url = "https://github.com/joshdurbin/"
+[[params.social]]
+    name = "Twitter"
+    icon = "fab fa-twitter fa-2x"
+    weight = 2
+    url = "https://twitter.com/durbinjo593/"
+[[params.social]]
+    name = "Instagram"
+    icon = "fab fa-instagram fa-2x"
+    weight = 3
+    url = "https://www.instagram.com/durbinjo593/"
+[[params.social]]
+    name = "Strava"
+    icon = "fab fa-strava fa-2x"
+    weight = 4
+    url = "https://www.strava.com/athletes/21518/"
+
+# Menu links
+[[menu.main]]
+    name = "Blog"
+    weight = 1
+    url  = "/posts/"
