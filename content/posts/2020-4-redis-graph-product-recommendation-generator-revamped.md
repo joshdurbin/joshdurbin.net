@@ -68,10 +68,10 @@ Internally, the script runs through a number of steps to make the graph generati
 3. Jedis opens a pool to redis and Redis Graph initializes itself from that pool.
 4. The script spins up a number of threads for creation of the foundational nodes (a) people and (b) products and waits for generation of the these objects from the faker
 5. A progressbar is initialized to show visual status of ^^^
-6. The faker begins generating (a) people and (b) products
+6. The faker begins generating (a) people and (b) products and the threads begin using `CREATE` statements against the graph
 7. A gate, a latch, is reached while we wait for all ^^^ processing to finish..........
 8. We then iterate over the people who've been placed in another queue for processing across another "pool" (not a pool, technically) of threads
-9. In each thread is where the majority of the random generation of edges resides, which is why we need to wait for those foundational nodes to be generated first. (This could have been done with `MERGE` operation, but...)
+9. In each thread is where the majority of the random generation of edges resides, which is why we need to wait for those foundational nodes to be generated first. (This could have been done with `MERGE` operation, but...) Most of the RedisGraph operators in this section are "CREATE" and bounded creates (my words), specifically, "MATCH ... CREATE".
 10. A progressbar is initialized to show visual status of ^^^
 
 The output of the progressbar and app itself looks like:
