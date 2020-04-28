@@ -1,10 +1,10 @@
 +++
-title = "Clean, easy concurrent inserts with Jedis and Groovy"
+title = "Groovy/Java concurrency patterns with Jedis"
 date = "2020-02-19"
-tags = ["groovy", "concurrency"]
+tags = ["groovy", "concurrency", "redis"]
 +++
 
-Building on the example of a prior post, this covers creating a simple, succinct process for concurrently
+Building on the example of a [prior post]({{< ref "/posts/2020-1-redis-graph-product-recommendation-part-1-data-loading.md" >}}), this covers creating a simple, succinct process for concurrently
 issuing calls against Redis.
 
 Our starting point is the following block of code where we open a pool against the default host/port of Redis,
@@ -23,7 +23,7 @@ import redis.clients.jedis.JedisPool
 def jedisPool = new JedisPool()
 ```
 
-As mentioned in the cited, prior post, this doesn't really do anything, though. So, to make it do things, we need
+There is nothing magical about this block of code -- it doesn't really do anything. To make it do things we need
 to grab a connection from the pool and operate on it...
 
 ```groovy
@@ -41,19 +41,19 @@ def jedis = jedisPool.getResource()
 jedis.set('thing', 'value')
 ```
 
-While connected to the Redis instance via the cli I can see the key is set to our value and all is great in the world, yay...
+Here we grab a connection a set the key `thing` to value `value`. Groundbreaking, right? We can verify our operation by connecting to the Redis instance via the CLI:
 
 ```
 127.0.0.1:6379> get thing
 "value"
 ```
 
-There are, however, a few issues with our code...
+There are a few issues with our code, though, even without necessarily, squarely considering concurrency:
 
 1. We aren't properly closing connections
 2. We're using a pool, which is maintaining a set number of connections to Redis, but we aren't concurrently accessing or leveraging them in our code and thus the usage of the Pool is moot.
 
-Addressing these is simple. First, objects that open long-standing connections/streams/etc... implement the [Closeable](https://docs.oracle.com/javase/7/docs/api/java/io/Closeable.html) interface and standard practice is to close these resources when you're done with them. Groovy has an opinionated way of dealing with this using [closures](http://groovy-lang.org/closures.html), specifically, the [`withCloseable`](https://docs.groovy-lang.org/latest/html/groovy-jdk/java/io/Closeable.html) closure. This works by invoking this closure on the `Closeable` resource and when the closure exits, the resource is automatically closed with no additional effort on your part.
+Addressing these is simple. First, objects that open long-standing connections/streams/etc... implement the [Closeable](https://docs.oracle.com/javase/7/docs/api/java/io/Closeable.html) interface and standard practice is to close these resources when you're done with them. Groovy has a way of dealing with this using [closures](http://groovy-lang.org/closures.html), specifically, the [`withCloseable`](https://docs.groovy-lang.org/latest/html/groovy-jdk/java/io/Closeable.html) closure. This works by invoking this closure on the `Closeable` resource and when the closure exits, the resource is automatically closed with no additional effort on your part.
 
 ```groovy
 #!/usr/bin/env groovy
@@ -71,7 +71,8 @@ jedisPool.getResource().withCloseable { jedis ->
 }
 ```
 
-The second part here is how to use this pool concurrently, which is a bit more involved given we need to break into concurrency basics. But first, let's review the performance of setting 100,000 keys in Redis using just a single connection.
+Before we break into the optimizations required of our application code to fully leverage the performance of Redis let's establish a baseline for how quickly we can perform certain operations. The following is an iteration of the former block
+that creates 100,000 keys.
 
 ```groovy
 #!/usr/bin/env groovy
@@ -91,9 +92,15 @@ jedisPool.getResource().withCloseable { jedis ->
 }
 ```
 
-Running this piece of code shows that the Redis process is minimally taxed -- is averaging about %9 CPU utilization on my 6-core 2019 MacBook Pro (which is 9-12 percentage usage of one core). Redis isn't breaking a sweat and neither is our app/script because, though we have a pool of connections to Redis, we are only using one, in one Thread. Setting 100,000 keys takes 1 min and 43 seconds; `8.37s user 1.91s system 9% cpu 1:43.11 total`.
+Running this piece of code shows that the application process is minimally taxed -- is averaging about %9 CPU utilization on my 6-core 2019 MacBook Pro (which is 9-12 percentage usage of one core). Redis isn't breaking a sweat, either. This is because our application code is using a single connection from the thread pool. The performance of such an approach means setting 100,000 keys takes 1 min and 43 seconds; `8.37s user 1.91s system 9% cpu 1:43.11 total`. The time output is captured by running the particular command, i.e. `groovy script.groovy`, as a child process of the `time` command, i.e. `time groovy script.groovy`. The output of this command is a bit different between BSD/Darin/MacOS and Linux, but effectively is broken into three buckets:
 
-So how do we change this? If you were building an actual application you might use an Executor for job/task submission and Thread management. In groovy, in these scripts specifically, it's usually easier to just spin up Threads yourself and manage their lifecycle using other Thread-safe objects, like concurrent queues and latches. We won't use latches and queues quite ye, though. To iterate on this, we'll first create our threads, which is super easy with Groovy's `Thread.start { }` closure, giving something that looks like this:
+1. `system` time, or time spent executing kernel operations
+2. `user` time, or time spent in user-land, which is typically your code
+3. the final time is the ["wall clock"](https://en.wikipedia.org/wiki/Elapsed_real_time) time, meaning the time from invocation from exit -- this is the time you experience as a user
+
+The fourth metric output is the total CPU over the scheduled time period for the process. In this case that's 9 percent, meaning that during the process consumed 9% of one cores available clock ticks for the given period.
+
+So how do improve this -- one minute and 43 seconds seems like a long time? If you were building an actual application you might use an Executor for job/task submission and Thread management. In Groovy, in these scripts specifically, it is usually easier to just spin up Threads yourself and manage their lifecycle using other Thread-safe objects, like concurrent queues and latches. We won't use latches and queues quite ye, though. To iterate on this, we'll first create our threads, which is super easy with Groovy's `Thread.start { }` closure, giving something that looks like this:
 
 ```groovy
 #!/usr/bin/env groovy
@@ -121,9 +128,9 @@ def jedisPool = new JedisPool()
 }
 ```
 
-The run time for this block of code about 3x faster: `6.45s user 2.24s system 30% cpu 28.079 total`. What happens if we increase the thread "pool" 10x to a total of 100 threads?
+In the former block we iterated by splitting the work up a bit; we start 10 threads and have each Thread run 10,000 loops. The run time for this block of code about 3x faster: `6.45s user 2.24s system 30% cpu 28.079 total`. What happens if we increase the thread "pool" 10x to a total of 100 threads?
 
-```groovy
+```
 #!/usr/bin/env groovy
 
 @Grapes([
@@ -149,9 +156,9 @@ def jedisPool = new JedisPool()
 }
 ```
 
-We see a slight reduction time from 28 seconds to 22 seconds (`8.57s user 2.61s system 49% cpu 22.460 total`), but not as much as you'd expect. The reason for this, in this particular case, is because the connection pool for Jedis is set to its default value of `8` **and** each thread is holding onto that connection for a long period of time (the time it takes to set 1000 keys). A few improvements can be done here:
+Here we create 100 threads and reduce the iterations per thread to 1,000 (down from 10,000) and we observe a slight reduction time from 28 seconds to 22 seconds (`8.57s user 2.61s system 49% cpu 22.460 total`) -- not as much as you'd expect with the increase in threads. The reason for this, in this particular case, is because the connection pool for Jedis is set to its default value of `8` **and** each thread is holding onto that connection for a long period of time (the time it takes to set 1000 keys). A few improvements can be done here:
 
-1. Set each thread to release the connection in between iterations of work. The work, though, in this case, is very lightweight and we probably won't see much benefit.
+1. Make each thread non-greedy with the connection pool by configuring each to release the connection in between iterations of work. This is particularly useful when there's _more_ work being done in the threads. Given our threads are essentially string formatting and concatenating values, we shouldn't expect much of an increase.
 2. Increase the default size of the thread pool to something closer to if not equal to the number of threads using the connection pool (8 vs 100)
 3. Batch set operations against Redis.
 
@@ -188,9 +195,9 @@ Here, as expected, we don't see a big reduction in the time it takes to process 
 
 #### 2 - increasing the connection pool size
 
-Doing this requires the additional use of an additional library, specifically, ``.
+Doing this requires the additional use of an additional library, specifically, [Apache Commons Pool](https://commons.apache.org/proper/commons-pool/).
 
-```groovy
+```
 #!/usr/bin/env groovy
 
 @Grapes([
@@ -223,8 +230,7 @@ Here we see our biggest improvement in performance yet... a little more than 2x 
 
 #### 3 - use of redis pipelines
 
-Because our operations are mutually independent we can easily "batch" them and send them as a pipeline request and optimize
-for the network overhead we incur when executing many commands against Redis.
+The final optimization will be to maximize the efficiency of each call to Redis by leveraging [pipelineing](https://redis.io/topics/pipelining). Because our operations are mutually independent we can easily "batch" them and send them together resulting in fewer network operations against Redis.
 
 ```groovy
 #!/usr/bin/env groovy
@@ -352,7 +358,3 @@ some basic optimizations in those Threads like:
 3. If the queue doesn't have anything for the Thread to work on, check if the finished atomic boolean is set to true and if so, exit
 
 With these modifications and much smaller pool of workers, `10` we're able to insert 100k entries, in 4 seconds: `7.02s user 0.41s system 184% cpu 4.024 total`.
-
-I find concurrent programming enjoyable in Java (really, Java by proxy by way of Groovy) and Go (for another time) and hope you found this interesting. The [javadocs](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/concurrent/package-summary.html) for java's `java.util.concurrent` package is a nice resource for learning about the various locks, semaphores, data structures with blocking/polling support, etc...
-
-Cheers

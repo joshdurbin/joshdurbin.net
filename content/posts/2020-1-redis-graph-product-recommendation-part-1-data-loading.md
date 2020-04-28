@@ -120,8 +120,6 @@ I'm going to assume Docker familiarity with all these examples.
 1. Run `redisgraph` with a data volume, allowing us to save our graph: `docker run -p 6379:6379 -it --rm -v redis-data:/data redislabs/redisgraph:edge`. If you've been running this for a while, it occasionally helps to explicitly pull the `redislabs/redisgraph:edge` tag.
 2. With [groovy](http://groovy-lang.org) installed, run `groovy 1-create_local_commerce_graph.groovy`. The script will output what its doing as it executes -- it won't leave you in the dark.
 
-
-
 #### Bulk Loading Generation of the Graph
 
 1. Run `redisgraph` with a data volume, allowing us to save our graph: `docker run -p 6379:6379 -it --rm -v redis-data:/data redislabs/redisgraph:edge`. If you've been running this for a while, it occasionally helps to explicitly pull the `redislabs/redisgraph:edge` tag.

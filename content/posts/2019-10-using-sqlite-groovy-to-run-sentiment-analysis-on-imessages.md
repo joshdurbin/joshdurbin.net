@@ -14,7 +14,7 @@ The script is pretty straight forward...
 3. runs [sentiment analysis](https://en.wikipedia.org/wiki/Sentiment_analysis) against the text
 4. pretty prints the overall sentiment using groovy [metaprogramming](http://groovy-lang.org/metaprogramming.html)
 
-```
+```groovy
 @Grapes([
     @Grab(group='org.xerial', module='sqlite-jdbc', version='3.27.2.1'),
     @Grab(group='edu.stanford.nlp', module='stanford-corenlp', version='3.9.2'),

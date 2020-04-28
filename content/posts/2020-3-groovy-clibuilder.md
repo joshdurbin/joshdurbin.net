@@ -5,8 +5,8 @@ tags = ["groovy", "cli"]
 +++
 
 Howdy, friends! You know what's better than heavy lifting, great performing (forgetting about startup expense), scripts and
-command line tools on the JVM? You guessed it! The ones that take well documented and user-friendly parameters and Interfaces
-for knob spinning and tweaking. :-)
+command line tools on the JVM? You guessed it -- ones that provide well documented and user-friendly parameters and interfaces
+for knob spinning and tweaking.
 
 So, then, you've probably guessed this post is about Groovy's [`CliBuilder`](https://docs.groovy-lang.org/latest/html/gapi/groovy/cli/commons/CliBuilder.html). You. are. CORRECT!
 
@@ -64,8 +64,9 @@ There are a few things to point out:
 2. Default values for parameterized options must **always** be strings, ex: `def defaultNumberThing = "${1550 * 4}"`
 3. You must cast each value pulled from CliBuilder after parsing unless you've specified a type or converter
 4. If you use a convert you cannot specify type
+5. Validation, even printing the usage in a user-friendly format must be done manually -- that is the reason for the conditionals checking for parsing and the help menu. (It is also worth nothing the help CLI option could just as easily be any boolean flag for any other purpose.)
 
-Ex:
+The following examples renders the values from the parsed options and their types...
 
 ```groovy
 #!/usr/bin/env groovy
@@ -106,7 +107,9 @@ doubleThing is '1.09' of type class java.lang.String
 numberThing is '6200' of type class java.lang.String
 ```
 
-#### Friendly
+Notice they are all of type String.
+
+#### Making `littleFriend` Friendly
 
 Types are important and you can just as easily check and cast things in your code after processing...
 
@@ -154,10 +157,12 @@ numberThing is '6200' of type class java.lang.String
 actual doubleThing is '1.09' of type class java.lang.Double
 ```
 
-#### Friendlier
+Notice the second to final non-empty line takes the String `doubleThing` and converts it to a double using Groovy's [`as`](http://groovy-lang.org/differences.html) keyword.
 
-A better way, though, which is less code, allows the parser to enforce correctness, etc... is to set the type on the
-optional declaration itself.
+#### Making `littleFriend` Friendlier
+
+A better way, though, which is less code and allows the parser to enforce correctness, etc... is to set the type on the
+option declaration itself.
 
 ```groovy
 #!/usr/bin/env groovy
@@ -198,11 +203,13 @@ doubleThing is '1.09' of type class java.lang.Double
 numberThing is '6200' of type class java.lang.String
 ```
 
+Noting the line `cli.dt(longOpt: 'doubleThing', "Some double. [defaults to '${defaultDoubleThing}']", args: 1, defaultValue: defaultDoubleThing)` has been modified to `cli.dt(longOpt: 'doubleThing', "Some double. [defaults to '${defaultDoubleThing}']", args: 1, type: Double, defaultValue: defaultDoubleThing)`, where the `type` is declared.
+
 #### Personalized Friendliness
 
-When supplying converters, types cannot be used and casting isn't required.
+When supplying converters, types cannot be used and casting isn't required. Here we have a class `Person` and a converted, as a closure, `personConverter`, that takes an input as `input` and returns a newly constructed `Person`.
 
-```
+```groovy
 #!/usr/bin/env groovy
 
 import groovy.transform.Canonical

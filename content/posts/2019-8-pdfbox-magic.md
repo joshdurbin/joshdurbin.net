@@ -11,7 +11,7 @@ by your own or their systems... That's what took me down a path to creating this
 for doing so. The version I created after this leveraged a [fuzzy search](https://github.com/xdrop/fuzzywuzzy)
 to examine document payloads instead of string literals.
 
-```java
+```groovy
 @Grapes([
   @Grab(group='org.apache.pdfbox', module='pdfbox', version='2.0.16'),
   @Grab(group='org.apache.tika', module='tika-core', version='1.22')

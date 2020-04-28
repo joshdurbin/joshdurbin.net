@@ -1,5 +1,5 @@
 baseurl = "/"
-title = "Joshua W Durbin"
+title = "Josh Durbin"
 theme = "hugo-coder"
 languagecode = "en"
 defaultcontentlanguage = "en"
@@ -9,14 +9,13 @@ googleAnalytics = "UA-10932654-1"
 paginate = 20
 canonifyurls = true
 
-pygmentsstyle = "bw"
 pygmentscodefences = true
 pygmentscodefencesguesssyntax = true
 
 disqusShortname = "joshdurbin"
 
 [params]
-    author = "Joshua W Durbin"
+    author = "Josh Durbin"
     keywords = "go,java,cms,groovy,devops,cloud,engineering,bicyling,bikes,diy,privacy,security"
     avatarurl = "img/jdurbin_logo.jpg"
 
@@ -55,6 +54,6 @@ disqusShortname = "joshdurbin"
 
 # Menu links
 [[menu.main]]
-    name = "Blog"
+    name = "Posts"
     weight = 1
     url  = "/posts/"

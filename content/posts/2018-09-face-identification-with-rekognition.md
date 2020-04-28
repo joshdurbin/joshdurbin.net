@@ -16,14 +16,14 @@ with very little investment. They allow users to:
 - track people in videos
 
 ...and more with just an account, credit card, basic know how and the will to do so. Gone are the days of training
-your own model (well, sort of) and futzing with OpenCV and TensorFlow (for example). 
+your own model (well, sort of) and futzing with OpenCV and TensorFlow (for example).
 
 One controversial usage of this new AI/ML commodity is the realtime processing, classification, and identification
 of people. Amazon's AWS Rekognition service places the issue front and center as [law enforcement](https://aws.amazon.com/blogs/machine-learning/using-amazon-rekognition-to-identify-persons-of-interest-for-law-enforcement/), [governments](https://www.aclu.org/blog/privacy-technology/surveillance-technologies/amazon-teams-government-deploy-dangerous-new), and private companies deploy its [cheap](https://aws.amazon.com/rekognition/pricing/)
 offerings in their tools and workflows. Amazon has cited [some positive](https://venturebeat.com/2018/08/09/amazon-counters-rekognition-facial-id-backlash-by-citing-positive-use-cases/)
 use cases of the platform in a "classic don't blame the tool" response. This post will follow
 suit, describing the process, ease, and function of use in private enterprise for fraud mitigation and prevention.
-First, though, here's a bit about what sets Rekognition apart from the other AI/MLaaS offerings. 
+First, though, here's a bit about what sets Rekognition apart from the other AI/MLaaS offerings.
 
 ![image](/img/2018-09-facial-analysis-person-identification-rekognition/0.jpg)
 
@@ -33,14 +33,14 @@ up with candidate or potential matches in a system. Pairwise analysis is less us
 at all, when the system doesn't control searching/matching algorithm and needs to identify hits in a sea
 or collection of many faces. This is a particular strength of AWS' Rekognition. At the time of development
 of the system outlined in this post, Rekognition was the only cloud service with this support. Since then
-Azure has launched a similar service, but Google still does not. 
+Azure has launched a similar service, but Google still does not.
 
 ## The Problem
 
 The problem to solve was to process, in near realtime, photos of people and cross identify
 those people in collections of ... you guessed it, people. The existing collections would be
 composed of already known entities and would be used to ask Rekognition simple questions like
-"does the face in this image appear in this collection of 100k faces?" 
+"does the face in this image appear in this collection of 100k faces?"
 
 ![image](/img/2018-09-facial-analysis-person-identification-rekognition/1.jpg)
 
@@ -54,19 +54,19 @@ each face returned from the index operation was cross queried across the collect
 of the results from the PoC were shocking; the service was perfect at identifying human faces
 and nearly perfect at cross identifying the same people. In fact, there were a few cases where the team thought
 the service was wrong, but it turned out, after post-processing the image, the team
-came the same conclusion as Rekognition. With a few simple tests the team ruled that Rekognition 
+came the same conclusion as Rekognition. With a few simple tests the team ruled that Rekognition
 was far superior to the custom, home-grown models previously attempted and that's
-not even considering cross facial identification and scoring! So, how does Rekognition work? 
+not even considering cross facial identification and scoring! So, how does Rekognition work?
 
 ### Rekognition Basics
 
 The gist of Rekognition for collections of faces is that images are indexed and then subsequently
 searched using either:
- 
+
  - a face UUID returned during the index operation (i.e. search the collection of faces with a face that's already in the collection)
  - an external image that is unindexed
- 
-...for hits based on similarity in the collection. 
+
+...for hits based on similarity in the collection.
 
 ![image](/img/2018-09-facial-analysis-person-identification-rekognition/2.jpg)
 
@@ -85,14 +85,11 @@ was created leveraging the following external dependencies:
 
 - the AWS Java SDK
 - Google Guava for collections and timing
-- Apache Tika for MIME type analysis 
+- Apache Tika for MIME type analysis
 
 From there, the script creates a Rekognition
-collection (if one doesn't already exist [unless it's overriden]), uses [Tika](https://tika.apache.org/) to evaluate and find JPEG/PNG images (those only
-supported by Rekognition), indexes the images, then cross queries the collection writing the results to a
+collection (if one doesn't already exist [unless it's overriden]), uses [Tika](https://tika.apache.org/) to evaluate and find JPEG/PNG images (those only supported by Rekognition), indexes the images, then cross queries the collection writing the results to a
 table. The script additionally supports data output and recreate/delete collection operations.
-
-
 
 ```
 ➜  rekognition-scripts git:(master) ✗ ./matchFaces
@@ -114,7 +111,7 @@ The following is an example collage with two sets of images; a1,a2 and b1,b2.
 ![image](/img/2018-09-facial-analysis-person-identification-rekognition/3.jpg)
 
 ```
-➜  rekognition-scripts git:(master) ✗ ./matchFaces -matchConfidenceThreshold 50 test_images 
+➜  rekognition-scripts git:(master) ✗ ./matchFaces -matchConfidenceThreshold 50 test_images
 Found 2 faces in image a1.jpg in 2010 ms
 Found 2 faces in image a2.jpg in 2823 ms
 Found 4 faces in image b2.jpg in 1558 ms
@@ -130,7 +127,7 @@ Found 3 faces in image b1.jpg in 2556 ms
 ```
 
 The script outputs the number of detected faces in each submitted file and constructs
-a table linking the search face UUID to the match face UUID also citing the file name and 
+a table linking the search face UUID to the match face UUID also citing the file name and
 the similarity score. In this case, the minimum confidence was set to %50 and Rekognition
 returned hits in the low seventies.
 
@@ -176,7 +173,7 @@ most relevant to the downstream systems, and exposed REST endpoints for consumpt
 other non-streaming-based systems.
 
 ![image](/img/2018-09-facial-analysis-person-identification-rekognition/4.jpg)
-  
+
 The results from the trial solution confirmed heuristic of dropping all but the largest face in addition to
 reporting that only 1/100 of a percent of images had multiple detected faces. The results
 also helped us inform our cutoff for automated confirmation; a cutoff set at %98.5 similarity.
@@ -210,7 +207,7 @@ This is especially useful when the collection grows to a certain scale and all R
 the collection take more than a second. The result of these operations are broken into their key, indexed attributes and [stored](https://github.com/joshdurbin/spring-kafka-rekognition-processor/blob/master/src/main/java/io/durbs/face/processor/service/persistence/DefaultResultPersistenceService.java) alongside the entire JSON
 index response payload. Duplicate entries are not re-processed and images that contain no faces aren't stored.
 The largest face from a successful index operation is dropped in an intra-service Kafka topic for
-searching. 
+searching.
 
 ### Searching overview
 
@@ -222,16 +219,16 @@ for consumption by downstream systems.
 ## Solution Optimizations
 
 Most of the optimizations around Rekognition are meant to address the cost of making API calls
-against the service, particularly with large data sets. 
+against the service, particularly with large data sets.
 
-- Pre-process images to detect any face prior to calling Rekognition -- Rekognition bills for all calls, including index operations where no faces are detected -- i.e. a photo of fruit in a bowl or a 
+- Pre-process images to detect any face prior to calling Rekognition -- Rekognition bills for all calls, including index operations where no faces are detected -- i.e. a photo of fruit in a bowl or a
 puppy in a field. Rekognition's real value-add in this case is cross identifying faces in collections. Other libraries
 like [OpenIMAJ](http://openimaj.org/) and [OpenCV](https://opencv.org/) could be used as gatekeepers to such a system, only
 allowing for images with detected faces to flow through. See [Facial recognition using OpenCV in Java](https://medium.freecodecamp.org/facial-recognition-using-opencv-in-java-92fa40c22f62)
 and [this post](https://www.joshdurbin.net/posts/2017-05-groovy-snippets-face-detection-openimaj/) on using OpenIMAJ.
 - Deploy a persistent, probabilistic data structure like a [Bloom Filter](https://en.wikipedia.org/wiki/Bloom_filter) to keep track of processed but invalid data -- In an environment where Kafka
 topic TTLs are indefinite and topic data is considered the source of truth, watch for re-played
-messages. To guard against un-necessary re-processing of images that 
+messages. To guard against un-necessary re-processing of images that
 didn't return faces in the first index operation pass, deploy a persistent BloomFilter (see Redisson's [distributed objects](https://github.com/redisson/redisson/wiki/6.-Distributed-objects)) to
 keep track of which messages your services have already seen.
 - Consider routing requests to different collections in cases where data isolation garantee can be met
@@ -250,7 +247,7 @@ I plan on updating the service mentioned in this post to include the optimizatio
 as I need it for a side project. Look for it!
 
 -Josh      
-     
+
 ### See Also
 
 - [AI Trends 2018: Machine Learning as a Service (MLaaS)](https://blog.g2crowd.com/blog/trends/artificial-intelligence/2018-ai/machine-learning-service-mlaas/)
