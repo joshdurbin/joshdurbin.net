@@ -1,7 +1,7 @@
 +++
-title = "Building a product recommendation engine using RedisGraph and OpenCypher, Part 1.1: Better data loading"
+title = "Product Recommendations in RedisGraph, Part 1.1: Better data loading"
 date = "2020-04-18"
-tags = ["graph", "redis", "recommendations", "data", "concurrency"]
+tags = ["graph", "redis", "recommendations", "data", "opencypher", "redisgraph"]
 +++
 
 This is a follow-up post to [one back in January]({{< ref "/posts/2020-1-redis-graph-product-recommendation-part-1-data-loading.md" >}}) related to using RedisGraph and OpenCypher to build a product recommendations engine. In that post I mentioned I'd have a follow up on the queries and OpenCypher basics, but this post is not that. That's coming next week. I Promise!
@@ -61,46 +61,11 @@ Commerce Graph Generator
  -tc,--threadCount <arg>                                      The thread count to use [defaults to 6]
  ```
 
-Internally, the script runs through a number of steps to make the graph generation very, very quick compared to the last iteration.
+Internally, the script runs through a number of steps to make the graph generation very, very quick compared to the last iteration. The dependency directives (Grapes) and imports are omitted.
 
-1. Imports and the CLI builder initializes to setup and provide input verification -- this takes a good number lines of code, unfortunately, but makes things pretty from a user / usability perspective
+1. CLI builder initializes to setup and provide input verification -- this takes a good number lines of code, unfortunately, but makes things pretty from a user / usability perspective
 
 ```groovy
-#!/usr/bin/env groovy
-
-@Grapes([
-  @Grab(group='com.redislabs', module='jredisgraph', version='2.0.0'),
-  @Grab(group='com.github.javafaker', module='javafaker', version='1.0.2'),
-  @Grab(group='org.apache.commons', module='commons-lang3', version='3.9'),
-  @Grab(group='org.apache.commons', module='commons-pool2', version='2.8.0'),
-  @Grab(group='redis.clients', module='jedis', version='3.2.0'),
-  @Grab(group='com.google.guava', module='guava', version='28.1-jre'),
-  @Grab(group='com.github.oshi', module='oshi-core', version='4.6.1'),
-  @Grab(group='me.tongfei', module='progressbar', version='0.7.3'),
-  @Grab(group='org.slf4j', module='slf4j-simple', version='1.7.30'),
-])
-
-import groovy.lang.Singleton
-import groovy.transform.Canonical
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.SplittableRandom
-import java.time.temporal.ChronoUnit
-import java.time.LocalDateTime
-import java.math.BigDecimal
-import java.math.MathContext
-import java.math.RoundingMode
-import com.github.javafaker.Faker
-import com.google.common.base.Stopwatch
-import com.redislabs.redisgraph.impl.api.RedisGraph
-import me.tongfei.progressbar.ProgressBar
-import org.apache.commons.lang3.RandomStringUtils
-import org.apache.commons.pool2.impl.GenericObjectPoolConfig
-import oshi.SystemInfo
-import redis.clients.jedis.JedisPool
-
 def progressBarUpdateInterval = 200
 
 // defaults must be strings for CliBuilder

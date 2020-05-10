@@ -1,7 +1,7 @@
 +++
-title = "Building a product recommendation engine using RedisGraph and OpenCypher, Part 1: Data loading"
+title = "Product Recommendations in RedisGraph, Part 1: Data loading"
 date = "2020-01-16"
-tags = ["graph", "redis", "recommendations", "data"]
+tags = ["graph", "redis", "recommendations", "data", "opencypher", "redisgraph"]
 +++
 
 There are so many persistence stores in the world; relational, document, key-value, time series, graph, and on and on...
