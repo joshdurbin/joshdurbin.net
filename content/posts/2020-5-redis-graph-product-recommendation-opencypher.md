@@ -1,30 +1,32 @@
 +++
 title = "Product Recommendations in RedisGraph, Part 2: openCypher Query Basics"
-date = "2020-05-07"
+date = "2020-05-12"
 tags = ["graph", "redis", "recommendations", "data", "opencypher", "redisgraph"]
 mermaid = true
 +++
 
-This post is a continuation of the series on leveraging RedisGraph for product recommendations.
+This post is part of a [series]({{< ref "/tags/recommendations" >}}) on leveraging RedisGraph for product recommendations.
+
+It's a hot time for Redis! [RedisConf 2020](http://redisconf.com) is happening virtually and there are many interesting topics on Redis and RedisGraph. Check it out!
 
 Back in Fall 2015 [Emil Eifrem](https://www.linkedin.com/in/emileifrem/), CEO/co-founder of [Neo4j](https://neo4j.com), [announced](https://neo4j.com/blog/open-cypher-sql-for-graphs/) [openCypher]() at
 GraphConnect in San Francisco. OpenCypher, inspired by Cypher, was Neo4j's 3rd attempt at a graph query language. The growth and adoption of graph tech they experienced alongside other vendors began to expose and emphasize the need for a common
 query language against Graphs -- someting similar to [SQL](https://en.wikipedia.org/wiki/SQL) for relational DBs. With Emil's announcement [openCypher](https://www.opencypher.org) was born. Here we'll talk about
-how to use openCypher generally and in the context of the product recommendation POC / [RedisGraph](http://redisgraph.io).
+how to use openCypher generally and in the context of the product recommendation proof of concept (POC) I've been building with [RedisGraph](http://redisgraph.io).
 
 ### Graph Basics
 
-I won't dive into an exhaustive explanation of graphs here (see [Wikipedia](https://en.wikipedia.org/wiki/Graph_(abstract_data_type))), but, in very broad strokes, they are structures composed of nodes and relationships. Relationships connect nodes
-and can be directed. There are also [many different types](https://en.wikipedia.org/wiki/Graph_(discrete_mathematics)#Types_of_graphs) of graphs. Redis Graph specifically is a directed, labeled multigraph where both nodes and relationships are labeled (and, optionally, contain
-properties). Generally speaking, graphs accel at deriving information from the interconnectedness of data -- as opposed to SQL or document systems where similar queries would require joining many tables or linking many collections.
+I won't dive into an exhaustive explanation of graphs here (see [Wikipedia](https://en.wikipedia.org/wiki/Graph_(abstract_data_type))), but, in very broad strokes they are structures composed of nodes and relationships. Relationships connect nodes
+and can be directed. There are also [many different types](https://en.wikipedia.org/wiki/Graph_(discrete_mathematics)#Types_of_graphs) of graphs. Redis Graph specifically is a directed, labeled multigraph where both nodes and relationships are labeled. 
+Nodes and labels can and often do contain properties like columns in a SQL-db or keys in a document store. Generally speaking, graphs accel at deriving information from the interconnectedness of data -- as opposed to SQL or document systems where similar queries would require joining many tables or linking many collections.
 
 Consider the following output from [RedisInsight](https://redislabs.com/redisinsight/) on a graph created from my commerce recommendation [POC tooling](http://github.com/joshdurbin/redis-graph-commerce-poc) (the process for
 generating it is outlined in [this post]({{< ref "/posts/2020-4-redis-graph-product-recommendation-generator-revamped.md" >}})):
 
 ![image](/img/2020-5-redis-graph-product-recommendation-opencypher/subgraph.png)
 
-Though it's not highlighted; the center-most, light-green node (with the giant red arrow pointing at it) is a node of type `person` and is the center point
-for this graph expansion. In this example `person` has relationships with many `product` nodes by three paths: 
+The center-most light-green node with the giant red arrow pointing at it is a node of type `person` and is the center point
+for this graph expansion. In this example, a `person`-labeled node has relationships with many `product`-labeled nodes by three paths: 
 
 1. When the `person` _viewed_ a `product`
 2. When the `person` _added a product_ to their cart
@@ -34,14 +36,14 @@ In addition to these patterns in the graph, `view` and `addtocart` edges exist b
 realistic as possible, `addtocart` edges are only created from a subset of the `view` edges that exist between a `person` and `product` node. These
 circumstances highlight Redis Graphs ability or utility as a [multigraph](https://en.wikipedia.org/wiki/Multigraph) -- when any node has parallel edges between itself and another node.  
 
-This example contains only directed relationships, which are denoted by the arrows in the graph visualization.
+All of the relationships in this POC and post are directed, which are denoted by the arrows in the graph visualization.
 
-### Graph Creation
+### Graph Generation
 
-The [graph generation](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/master/generateCommerceGraph) tooling issues two types of commands against Redis Graph to seed and populate the graph:
+The [graph generation](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/master/generateCommerceGraph) tooling runs through two phases to seed and populate the graph:
 
-1. The creation of nodes occurs via `create` statements. Three node "types" (not RedisGraph types, as they apply to edges/relationships), labels exist in the form of the following: `person`, `product`, and `order`. 
-The following are the create statements used to insert these nodes into the graph.     
+1. The creation of independent nodes occurs via `create` statements. Three node "varieties" are created: `person`, `product`, and `order`. Technically the "variety" of a node is referred to as a label. 
+We'll step through distinct examples of each node - label creation. The following are the create statements used to insert these nodes into the graph.     
     
     ```
     CREATE (:person {
@@ -52,11 +54,11 @@ The following are the create statements used to insert these nodes into the grap
         memberSince:"2011-01-07T07:49:21.274235"})
     ```
     
-    Each `CREATE` statement takes a node enclosed by parenthesis with its label defined with a colon and the label ex: `person`. Properties for nodes are defined 
+    The [`CREATE`](https://oss.redislabs.com/redisgraph/commands/#create) statement takes a node enclosed by parenthesis with its label defined with a colon and the label ex: `person`. Properties for nodes are defined 
     within the bounds of left and right curly brackets `{ }`. Each property must contain a string key separated by a colon and the value, which must equal one of
     the [supported types](https://oss.redislabs.com/redisgraph/cypher_support/#types). Multiple properties are separated by commas.
     
-    Note: In these examples `id` is a property the application is setting on the node, which can be used for querying/matching,
+    In these examples `id` is a property the application is setting on the node, which can be used for querying/matching,
     but is not the unique ID of the node in the graph itself -- an important distinction. The internal ID of a node or
     relationship can be obtained via the [Scalar function](https://oss.redislabs.com/redisgraph/commands/#scalar-functions) `id()`.
     
@@ -78,8 +80,7 @@ The following are the create statements used to insert these nodes into the grap
     ```
    
     Per the openCypher spec, nodes are supposed to support multiple labels and edges or relationships are supposed to support multiple types. As of this writing,
-    RedisGraph does not support at least multiple node labels, but there is an [issue](https://github.com/RedisGraph/RedisGraph/issues/910) tracking that enhancement.
-    I'm uncertain of 
+    RedisGraph does not support at least multiple node labels, but there is an [issue](https://github.com/RedisGraph/RedisGraph/issues/910) tracking that enhancement.   
     
     Our final node type created in this POC is of label `order`:    
          
@@ -94,11 +95,12 @@ The following are the create statements used to insert these nodes into the grap
         )
     ```        
 
-2. The next crucial, and, arguably more important part of this graph creation is the relationships, the edges. As previously covered they do the connecting,
+2. The next crucial component of this graph creation is the relationships/the edges -- they do the connecting,
 the entire reason for having a graph in the first place.
 
     Here the tooling is instructing the graph to execute a sort of conditional create where its first matching nodes of various types, then creating
-    a relationship between those nodes. `MATCH` is used to tell the graph to find the nodes, a path, relationships, etc...  
+    a relationship between those nodes. [`MATCH`](https://oss.redislabs.com/redisgraph/commands/#match) is used to tell the graph to find the
+    nodes, a path, relationships, etc...  
       
     Consider the following statement:  
     
@@ -112,8 +114,8 @@ the entire reason for having a graph in the first place.
     ```
     
     This query instructs the graph to match and find nodes with labels `person`, `order`, and `product`. These look similar to the create statements before except the
-    labels have a leading identifier prior to the colon and label declaration. These identifiers, termed an [alias](https://oss.redislabs.com/redisgraph/commands/#match), `p`, `o`, `prd3`, and `prd0` are exclusive to the query. They could be
-    _anything_ -- graph generation app uses sensible names for these aliases, though, which is why `prd3` and `prd0` are used. These aliases in and of themselves
+    labels have a leading identifier prior to the colon and label declaration. These identifiers, termed an alias, `p`, `o`, `prd3`, and `prd0` are exclusive to the query.
+    The aliases could be _anything_. However, the graph generation tooling uses sensible names for these aliases, though, which is why `prd3` and `prd0` are used. These aliases in and of themselves
     do not restrict us to "product 3" and "product 0". The restrictions to those product ids come in the `WHERE` segment of the query: 
     
     ```
@@ -122,14 +124,13 @@ the entire reason for having a graph in the first place.
     
     ...where alias `p`, which is a node label `person`, with property `id` equal to `4`, etc...
     
-    **Only when** this conditional is met do we create our edges, our relationships:
+    Only when this conditional is met do we create our edges, our relationships:
     
     ```
     CREATE(p)-[:transact]->(o), (o)-[:contain]->(prd3), (o)-[:contain]->(prd0)
     ```
     
-    The `CREATE` statement here is creating three edges of `type`, `transact`, and (2x) `contain`. It's worth noting that
-    these edges _could_ contain properties -- we'll see an example of this in our next example. The `create` statements
+    The `CREATE` statement here is creating three edges of types: `transact` and `contain`. The `create` statements
     are leveraging the same aliases we used for our `MATCH` statement, which now makes it a little more clear why they are
     explicitly named `p`, `o`, `prd3`, and `prd0`.
     
@@ -162,10 +163,18 @@ the entire reason for having a graph in the first place.
     
 ### Querying the Graph
 
-Note: some queries include query times. The graph used for these queries and all subsequent examples was created [by the generator](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/master/generateCommerceGraph).  
+Next we'll zip through some examples of running queries and functions on the graph. Each example is broken into an easier to read version of the query
+and the execution of the query using the redis command line tooling.  
 
 1. Query the distinct labels in the graph. The following query will match any node, any match aliased with `n`, returning
 distinct results from the `labels()` function.
+
+    ```
+    match
+        (n)
+    return
+        distinct labels(n)
+    ```
 
     ```
     127.0.0.1:6379> graph.query prodrec "match (n) return distinct labels(n)"
@@ -176,7 +185,7 @@ distinct results from the `labels()` function.
     3) 1) "Query internal execution time: 10.429400 milliseconds"
     ```
    
-   An alternative approach to this specific query is calling the `db.labels()` function. This is an optimized function and should be preferred for this type of query. 
+   An alternative approach to this specific query is calling the `db.labels()` function. This is an optimized function and should be preferred for this type of query -- note the difference in response time. 
    
    ```
    127.0.0.1:6379> graph.query prodrec "call db.labels()"
@@ -191,6 +200,13 @@ distinct results from the `labels()` function.
 aliased with `e`, between an un-aliased source and destination node of any label, returning distinct types from the `type()` function.
 
     ```
+    match
+        ()-[e]->()
+    return
+        distinct type(e)
+    ```
+
+    ```
     127.0.0.1:6379> graph.query prodrec "match ()-[e]->() return distinct type(e)"
     1) 1) "type(e)"
     2) 1) 1) "view"
@@ -201,7 +217,7 @@ aliased with `e`, between an un-aliased source and destination node of any label
     ```
 
     An alternative approach to this specific query is calling the `db.relationshipTypes()` function. Just like the other DB function call, this is also optimized and should
-    be preferred for this type of query.   
+    be preferred for this type of query -- note the difference in response time.   
     
     ```
     127.0.0.1:6379> graph.query prodrec "call db.relationshipTypes()"
@@ -214,6 +230,13 @@ aliased with `e`, between an un-aliased source and destination node of any label
     ```    
    
 3. Query the distinct labels in the graph and obtain their counts -- similar to the aforementioned query in ex: #1, with an added `count`.
+
+    ```
+    match
+        (n)
+    return
+        distinct labels(n), count(n)
+    ```
 
     ```
     127.0.0.1:6379> graph.query prodrec "match (n) return distinct labels(n), count(n)"
@@ -229,6 +252,13 @@ aliased with `e`, between an un-aliased source and destination node of any label
     ```
    
 4. Query the distinct edges (or relationships) in the graph -- similar to the aforementioned query in ex: #2, with an added `count`     
+
+    ```
+    match
+        ()-[e]->()
+    return
+        distinct type(e), count(e)
+    ```
     
     ```
     127.0.0.1:6379> graph.query prodrec "match ()-[e]->() return distinct type(e), count(e)"
@@ -247,6 +277,15 @@ aliased with `e`, between an un-aliased source and destination node of any label
     
 5. Obtain the id of a node. The following query will match a node of type `person` with the query alias `p`
 and the conditional, property, `id` == `3` returning the actual ID of the node via the `id` function.
+
+    ```
+    match
+        (p:person)
+    where
+        p.id=3
+    return
+        id(p)
+    ```
 
     ```
     127.0.0.1:6379> graph.query prodrec "match (p:person) where p.id=3 return id(p)"
@@ -269,6 +308,13 @@ and the conditional, property, `id` == `3` returning the actual ID of the node v
 specify the required property match in the node itself rather than with a `where` clause.
 
     ```
+    match
+        (p:person {id: 3})
+    return
+        id(p)
+    ```
+
+    ```
     127.0.0.1:6379> graph.query prodrec "match (p:person {id: 3}) return id(p)"
     1) 1) "id(p)"
     2) 1) 1) (integer) 3
@@ -277,6 +323,13 @@ specify the required property match in the node itself rather than with a `where
 7. Obtain the id of a relationship or edge. This query is similar to aforementioned query in ex: #2; match
 any directed relationship, aliased with `e`, between an un-aliased source and destination node of any label,
 returning the ID of the relationship via the `id` function.
+
+    ```
+    match
+        ()-[e]->()
+    return
+        id(e) limit 1
+    ```
     
     ```
     127.0.0.1:6379> graph.query prodrec "match ()-[e]->() return id(e) limit 1"
@@ -321,7 +374,8 @@ descending order and limited to 3.
     ```
     match
         (:order)-[c:contain]->(p:product)
-    return p.id, p.name, count(c) as count
+    return
+        p.id, p.name, count(c) as count
     order by count limit 3
     ```
 
@@ -348,7 +402,8 @@ a directional edge of type `view` with alias `v` to a node of label `product` wi
     ```
     match
         (:person)-[v:view]->(p:product)
-    return p.id, p.name, count(v) as count
+    return
+        p.id, p.name, count(v) as count
     order by count limit 3
     ```
 
@@ -375,7 +430,8 @@ a directional edge of type `contain` with alias `c` to a node of label `product`
     ```
     match
         (:order)-[c:contain]->(p:product)
-    return p.id, p.name, count(c) as count
+    return
+        p.id, p.name, count(c) as count
     order by count desc limit 3
     ```       
 
@@ -502,25 +558,35 @@ the last example each time, we wanted to periodically set them on the nodes them
           2) (integer) 29
           3) (integer) 33
           4) (integer) 127
+   
+    // ommitted nodes //
+   
      406) 1) (integer) 393
           2) (integer) 30
           3) (integer) 33
           4) (integer) 131
+   
+    // ommitted nodes //
+   
     1000) 1) (integer) 999
           2) (integer) 27
           3) (integer) 28
           4) (integer) 126
     3) 1) "Properties set: 3000"
     2) "Query internal execution time: 263.394600 milliseconds"    
-    ```      
+    ```
+   
+    Here we query for the node via `match (p:product) where p.id=333 return p` in RedisInsight to produce and show the results from the `merge`.
     
+    ![image](/img/2020-5-redis-graph-product-recommendation-opencypher/merged_prod_node.png)
+             
 The next section will get into more powerful paths through the nodes and edges in the system and begin to show the power of openCypher and the graph.            
            
 ### Basic Product Recommendation Queries
 
-The following query as adapted from the queries in [this gist](https://gist.githubusercontent.com/adam-cowley/79923b538f6851d30e08/raw/abe673493fafba9f2cfd43cba0d7c6b334e6b01e/neo4j-northwind-recommendation).
-
-There are a number of ways you could extract meaningful information about what to recommend to a user. 
+There are a number of ways you could extract meaningful information about what to recommend to a user. These next few examples highlight a very crude
+approach to recommendations where we want to show all the `product` nodes that share orders in common with the `product` nodes in the `transacted` 
+`order` nodes for a given person. In the first example the person targeted is identified by their `id` property `294`.   
 
 1. Find products that are in orders that have common products placed by person id 294. Limit results to 1 (so this blog post isn't terribly long).
 
@@ -566,9 +632,9 @@ There are a number of ways you could extract meaningful information about what t
     return distinct prd   
     ```   
     
-    Note that the query returns the alias for `product`, `prd`, itself and therefor we get all the details for that node.
+    This query returns the alias for `product`, `prd`, itself and therefor we get all the details for that node.
     
-2. The following is a slight variation of the last example where we remove the users purchased products from the list of recommendations.
+2. The following is a minor variation over the last example where we go a step further to remove the users purchased products from the list of recommendations.
 
     ```
     match
@@ -594,23 +660,119 @@ There are a number of ways you could extract meaningful information about what t
           2) "Gorgeous Plastic Wallet"
     3) 1) "Query internal execution time: 2.397600 milliseconds"   
     ```
+     
+    This query is marginally more useful than the last but there's a lot of room for improvement. One such improvement might be to sort 
+    and pick only the most popular products to return from the subset.
+
+3. Returning the most popular 3 products as defined by inbound relationships to each product -- this query builds on the former.
+
+    ```
+    match
+        (p:person { id: 294 })-[:transact]->(:order)-[:contain]->(prod:product)
+    match
+        (prod)<-[:contain]-(:order)-[:contain]->(rec_prod:product)
+    where not
+        (p)-[:transact]->(:order)-[:contain]->(rec_prod)
+    return
+        rec_prod.id, rec_prod.name
+    order by
+        indegree(prod) desc limit 3  
+    ```
    
-    This query is marginally more useful but we still really need additional data and/or queries or partial queries to rank the recommendations.
+    Here we layer in a crude attempt at finding the popularity of the product by using the [node function](https://oss.redislabs.com/redisgraph/commands/#node-functions)
+    that returns the number of inbound connections, or relationships, or edges for each product.
     
-### Followup Query Post     
-                       
-The post following this will be on easy ways to concurrently stress Redis and RedisGraph with the prior query. The post following that will dig deeper into
-additional queries and usage of additional data, like product reviews, to better target / identify which products to share users. We'll be answering questions like:
+    ```
+    127.0.0.1:6379> graph.query prodrec "match (p:person { id: 294 })-[:transact]->(:order)-[:contain]->(prod:product) match (prod)<-[:contain]-(:order)-[:contain]->(rec_prod:product) where not (p)-[:transact]->(:order)-[:contain]->(rec_prod) return rec_prod.id, rec_prod.name order by indegree(prod) desc limit 3"
+    1) 1) "rec_prod.id"
+       2) "rec_prod.name"
+    2) 1) 1) (integer) 33
+          2) "Mediocre Steel Gloves"
+       2) 1) (integer) 54
+          2) "Small Linen Wallet"
+       3) 1) (integer) 55
+          2) "Heavy Duty Silk Pants"
+    3) 1) "Query internal execution time: 132.870600 milliseconds" 
+    ```
+   
+    If the query is re-written to return the `product`-labeled nodes themselves we can produce a graph in RedisInsight.
+    
+    ```
+    match
+        (p:person { id: 294 })-[:transact]->(:order)-[:contain]->(prod:product)
+    match
+        (prod)<-[:contain]-(:order)-[:contain]->(rec_prod:product)
+    where not
+        (p)-[:transact]->(:order)-[:contain]->(rec_prod)
+    return
+        rec_prod
+    order by
+        indegree(prod) desc limit 3  
+    ```
+   
+    ![image](/img/2020-5-redis-graph-product-recommendation-opencypher/indegree_query.png)
+    
+    And selecting one of those products, like the "Heavy Duty Silk Pants", shows an expansion of all that product's connections. RedisInsight allows exports
+    of graph views which is very, very slick.
+    
+    ![image](/img/2020-5-redis-graph-product-recommendation-opencypher/indegree_graph_expansion_export.png)     
+    
+    Another optimization on this query might be to calculate, rank products recommended based on a rating that `people` give `products`. Or,
+    iterating on this solution and instead of getting the inbound connection count, get the count for each known edge type and weight them. It might
+    also be useful to have abandoned cart or removal from cart events in place of add to cart events. As it is currently written, the graph
+    generation tooling code generates a random set of `view` edges for products and from that a subset is created for `addtocart` edges and from that
+    another subset is created that are "contained" in an order. Tracking "negative" events, particular the two aforementioned ones, might be more
+    useful than the existing `addtocart` edge.
+        
+4. The final example of recommendations is a query inspired by a work colleague of mine, [Matthew Huckaby](https://www.linkedin.com/in/matthew-huckaby-928ab02/) (on [Twitter](http://twitter.com/makingElements) and [GH](https://github.com/mhuckaby)).
+In this query we want to find the top 3 products (`id` and `name`) viewed by people who have purchased queried product, id `393`.
 
-"Find all products viewed by people who have purchased the thing that the current user is looking at..."
+    ```
+    match
+        (p:person)-[:transact]->(:order)-[:contain]->(:product { id: 393 })
+    with
+        p
+    match
+        (p)-[v:view]->(prod:product)
+    return
+        prod.id, prod.name, count(v)
+    order by count(v) desc limit 3   
+    ```
 
-Stay tuned!                                  
+    Here we specify the match on the path originating from a `person`-labeled node with alias `p` to the `order`-labeled node via the `transact`-typed
+    edge. From that un-aliased `order`-labeled node we require a connection to an un-aliased `product`-labeled node (with the `id` property set to `393`)
+    via the `contain`-typed edge. Each person `p` is returned from the `match`.
+    
+    Next up we match `product`-labeled nodes connected from each `person`-labeled node `p` (that was passed from the prior match) via the `view`-typed
+    edge with the alias `v`.
+    
+    The product `id`, `name`, and count of `view`-edges are returned from the query in descending order of the `view`-edge count and limited to 3.         
+   
+    ```
+    127.0.0.1:6379> graph.query prodrec "match (p:person)-[:transact]->(:order)-[:contain]->(:product { id: 393 }) with p match (p)-[v:view]->(prod:product) return prod.id, prod.name, count(v) order by count(v) desc limit 3"
+    1) 1) "prod.id"
+       2) "prod.name"
+       3) "count(v)"
+    2) 1) 1) (integer) 393
+          2) "Practical Wool Hat"
+          3) (integer) 35
+       2) 1) (integer) 17
+          2) "Small Marble Gloves"
+          3) (integer) 5
+       3) 1) (integer) 266
+          2) "Practical Cotton Shoes"
+          3) (integer) 5
+    3) 1) "Query internal execution time: 5.658700 milliseconds"
+    ```                
 
 ### Additional Reading
+
+The following documents are really useful for getting started with things. It is important to node that Redis Graph is implementing most but (yet) all of the openCypher commands and spec.
 
 1. the [Cypher Query Language Reference (Version 9)](https://s3.amazonaws.com/artifacts.opencypher.org/openCypher9.pdf) from the [OpenCypher resources](http://www.opencypher.org/resources)
 2. the [Cypher Style Guide]() also from the [OpenCypher resources](http://www.opencypher.org/resources)
 3. [Redis Graph Commands](https://oss.redislabs.com/redisgraph/commands/) for a full list of supported commands
 4. [Redis Graph Cypher Coverage](https://oss.redislabs.com/redisgraph/cypher_support/) for notes on what commands aren't covered (yet) by Redis Graph
 5. [learn x in y minutes (cypher)](https://learnxinyminutes.com/docs/cypher/)
-  
+
+Cheers and Happy RedisConf day two!   

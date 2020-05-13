@@ -1,10 +1,11 @@
 +++
 title = "Product Recommendations in RedisGraph, Part 3: Query Load Testing"
-date = "2020-05-11"
+date = "2020-05-14"
 tags = ["graph", "redis", "recommendations", "data", "opencypher", "redisgraph"]
+draft = true
 +++
 
-This post is a continuation of the series on leveraging RedisGraph for product recommendations.
+This post is part of a [series]({{< ref "/tags/recommendations" >}}) on leveraging RedisGraph for product recommendations.
 
 The posts in this "series" detail the generation scripts for programmatic and bulk loading of the mock commerce graph/data. This post will
 focus on a query load testing tool for Redis Graph.
@@ -219,4 +220,12 @@ Concurrent RedisGraph Query Runner
  -rp,--redisPort <arg>       The port of the Redis instance with the RedisGraph module installed to use for graph creation. [defaults to 6379]
  -tc,--threadCount <arg>     The thread count to use [defaults to 6]
  -tp,--topPurchasers <arg>   The number of top purchasers to query for [defaults to 1000]
+```
+
+### Sample Output
+
+```shell script
+./productRecommendationQueryRunner 
+Progress 100% │██████████████████████████████████████████████████████████████████████████████████████████████████████████│ 1000/1000 (0:00:08 / 0:00:00) 
+Found a min number of recommended products of 174, avg of 501, and a max of 860 for 1000 with a query performance p50 44ms, p95 81ms, p99 107ms
 ```

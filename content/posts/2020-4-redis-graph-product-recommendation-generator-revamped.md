@@ -4,7 +4,7 @@ date = "2020-04-18"
 tags = ["graph", "redis", "recommendations", "data", "opencypher", "redisgraph"]
 +++
 
-This is a follow-up post to [one back in January]({{< ref "/posts/2020-1-redis-graph-product-recommendation-part-1-data-loading.md" >}}) related to using RedisGraph and OpenCypher to build a product recommendations engine. In that post I mentioned I'd have a follow up on the queries and OpenCypher basics, but this post is not that. That's coming next week. I Promise!
+This post is part of a [series]({{< ref "/tags/recommendations" >}}) on leveraging RedisGraph for product recommendations.
 
 This post is to discuss changes to the [graph generator](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/master/generateCommerceGraph). I've put a decent chunk of effort into tweaking the performance, configurability, etc.. of the generator and you might ask yourself why? Why spend time generating fake data? Well, a few things:
 
