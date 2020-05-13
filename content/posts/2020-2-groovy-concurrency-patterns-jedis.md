@@ -130,7 +130,7 @@ def jedisPool = new JedisPool()
 
 In the former block we iterated by splitting the work up a bit; we start 10 threads and have each Thread run 10,000 loops. The run time for this block of code about 3x faster: `6.45s user 2.24s system 30% cpu 28.079 total`. What happens if we increase the thread "pool" 10x to a total of 100 threads?
 
-```
+```groovy
 #!/usr/bin/env groovy
 
 @Grapes([
@@ -166,7 +166,7 @@ Let's go through these one-by-one.
 
 #### 1 - non-greedy connection usage per thread
 
-```
+```groovy
 #!/usr/bin/env groovy
 
 @Grapes([
@@ -197,7 +197,7 @@ Here, as expected, we don't see a big reduction in the time it takes to process 
 
 Doing this requires the additional use of an additional library, specifically, [Apache Commons Pool](https://commons.apache.org/proper/commons-pool/).
 
-```
+```groovy
 #!/usr/bin/env groovy
 
 @Grapes([

@@ -32,7 +32,7 @@ Running the utility is straight forward, all you need is Java 11 (I'm using Open
 
 Here's a snapshot, output of the help menu for the script. The script requires no parameters and will use the defaults stated in the help menu below.
 
-```
+```shell script
 ./generateCommerceGraph -h
 usage: generateCommerceGraph
 Commerce Graph Generator
@@ -62,6 +62,11 @@ Commerce Graph Generator
  ```
 
 Internally, the script runs through a number of steps to make the graph generation very, very quick compared to the last iteration. The dependency directives (Grapes) and imports are omitted.
+
+{{<mermaid align="left">}}
+graph LR
+   setup --> a["more complex"] --> d & c--> d
+{{< /mermaid >}}
 
 1. CLI builder initializes to setup and provide input verification -- this takes a good number lines of code, unfortunately, but makes things pretty from a user / usability perspective
 

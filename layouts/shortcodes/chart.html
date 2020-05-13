@@ -1,0 +1,86 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.3/Chart.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.8.9/jquery.csv.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.core.min.js"></script>
+
+<canvas id="{{ .Get "id"}}" width="{{ .Get "width" }}" height="{{ .Get "height" }}"></canvas>
+
+<script>
+    var rawCSV = '{{ (.Get "data") }}'
+
+    var data, labels, dataPoints;
+    var config;
+
+    function drawCanvas() {
+        config = {
+            type: 'bar',
+            scaleFontColor: 'red',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Recorded HR Value',
+                    pointStyle: "circle",
+                    data: dataPoints,
+                    backgroundColor: "rgba(255, 99, 132, 0.5)",
+                    borderColor: "rgba(255, 99, 132, 0.5)",
+                    showLine: false,
+                    lineTension: 0,
+                    borderWidth: 0,
+                    pointRadius: 7,
+                    pointHoverRadius: 13,
+                }],
+                borderWidth: 1
+            },
+            options: {
+                responsive: true,
+                legend: {
+                    display: true,
+                    labels: {
+                        fontColor: 'rgb(255, 99, 132)'
+                    },
+                    position: "bottom"
+                },
+                hover: {
+                    mode: 'index'
+                },
+                title: {
+                    display: true,
+                    text: 'First Day of Data From the Apple Watch',
+                    fontColor: "#c6cddb"
+                }
+            }
+        };
+
+        var ctx = document.getElementById('{{ .Get "id" }}').getContext('2d');
+        window.myLine = new Chart(ctx, config);
+    };
+
+    function obtainData() {
+        $.ajax({
+            type: "GET",
+            url: rawCSV,
+            dataType: "text",
+            success: function (response) {
+
+                console.log("Hello world!");
+                data = $.csv.toObjects(response);
+                console.log(data);
+                labels = _.map(data, 'name');
+                console.log(labels);
+                dataPoints = _.map(data, 'age');
+                console.log(dataPoints);
+
+                drawCanvas();
+            }
+        });
+    };
+
+    $(document).ready(function () {
+        obtainData();
+    });
+
+    window.onload = function () {
+
+    };
+
+</script>
