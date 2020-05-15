@@ -4,6 +4,8 @@ date = "2020-01-16"
 tags = ["graph", "redis", "recommendations", "data", "opencypher", "redisgraph"]
 +++
 
+This post is part of a [series]({{< ref "/tags/recommendations" >}}) on leveraging RedisGraph for product recommendations.
+
 There are so many persistence stores in the world; relational, document, key-value, time series, graph, and on and on...
 Of all those types, graphs excel at deriving the manner of the interconnectedness of data. This is why social networks
 are backed by graphs, why fraud systems are often graph-based, and why recommendation engines of most kinds are too!

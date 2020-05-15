@@ -9,7 +9,6 @@ googleAnalytics = "UA-10932654-1"
 paginate = 20
 canonifyurls = true
 
-#pygmentsstyle = "monokailight"
 pygmentsstyle = "manni"
 pygmentscodefences = true
 pygmentscodefencesguesssyntax = true
@@ -61,7 +60,7 @@ disqusShortname = "joshdurbin"
     url  = "/posts/"
 [[menu.main]]
     name = "About"
-    weight = 2
+    weight = 3
     url = "/about/"
 [[menu.main]]
     name = "Professional History"

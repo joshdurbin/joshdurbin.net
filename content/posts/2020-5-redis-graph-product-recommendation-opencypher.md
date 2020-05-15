@@ -2,7 +2,7 @@
 title = "Product Recommendations in RedisGraph, Part 2: openCypher Query Basics"
 date = "2020-05-12"
 tags = ["graph", "redis", "recommendations", "data", "opencypher", "redisgraph"]
-mermaid = true
+highlightjs = true
 +++
 
 This post is part of a [series]({{< ref "/tags/recommendations" >}}) on leveraging RedisGraph for product recommendations.
@@ -14,29 +14,45 @@ GraphConnect in San Francisco. OpenCypher, inspired by Cypher, was Neo4j's 3rd a
 query language against Graphs -- someting similar to [SQL](https://en.wikipedia.org/wiki/SQL) for relational DBs. With Emil's announcement [openCypher](https://www.opencypher.org) was born. Here we'll talk about
 how to use openCypher generally and in the context of the product recommendation proof of concept (POC) I've been building with [RedisGraph](http://redisgraph.io).
 
+This post is broken up into the following sections...
+
+- A very brief overview of graphs
+- Specifics of this e-Commerce-related graph generation POC
+- Basics of querying
+- Queries related to common questions of e-Commerce data
+- Product recommendation queries
+- What's next
+- Additional reading materials 
+
 ### Graph Basics
 
-I won't dive into an exhaustive explanation of graphs here (see [Wikipedia](https://en.wikipedia.org/wiki/Graph_(abstract_data_type))), but, in very broad strokes they are structures composed of nodes and relationships. Relationships connect nodes
-and can be directed. There are also [many different types](https://en.wikipedia.org/wiki/Graph_(discrete_mathematics)#Types_of_graphs) of graphs. Redis Graph specifically is a directed, labeled multigraph where both nodes and relationships are labeled. 
-Nodes and labels can and often do contain properties like columns in a SQL-db or keys in a document store. Generally speaking, graphs accel at deriving information from the interconnectedness of data -- as opposed to SQL or document systems where similar queries would require joining many tables or linking many collections.
+[Graphs](https://en.wikipedia.org/wiki/Graph_(abstract_data_type)) are, very simply put, structures composed of nodes and relationships, or edges. Relationships connect nodes
+and can be directed. There are also [many different types](https://en.wikipedia.org/wiki/Graph_(discrete_mathematics)#Types_of_graphs) of graphs. Redis Graph is a directed, labeled, [multigraph](https://en.wikipedia.org/wiki/Multigraph) where both nodes and relationships are typed --
+nodes with labels and edges with types. Nodes and edges can and often do contain properties like columns in a SQL-db or keys in a document store. Generally
+speaking, graphs excel at deriving information from the interconnectedness of data -- as opposed to SQL or document systems where similar queries would require joining many tables or linking many collections.
 
 Consider the following output from [RedisInsight](https://redislabs.com/redisinsight/) on a graph created from my commerce recommendation [POC tooling](http://github.com/joshdurbin/redis-graph-commerce-poc) (the process for
 generating it is outlined in [this post]({{< ref "/posts/2020-4-redis-graph-product-recommendation-generator-revamped.md" >}})):
 
 ![image](/img/2020-5-redis-graph-product-recommendation-opencypher/subgraph.png)
 
-The center-most light-green node with the giant red arrow pointing at it is a node of type `person` and is the center point
-for this graph expansion. In this example, a `person`-labeled node has relationships with many `product`-labeled nodes by three paths: 
+The centered, light green node with the giant red arrow pointing at it is a `person`-labeled node and is the center point
+for this graph expansion. In total, there are three node "varieties" created in this POC:
 
-1. When the `person` _viewed_ a `product`
-2. When the `person` _added a product_ to their cart
-3. When the `person` placed (_transacted_) an `order` which _contained_ the product
+1. `person`-labeled nodes (again, shown in light green)
+2. `product`-labeled nodes shown in dark green
+3. `order`-labeled nodes in dark blue
 
-In addition to these patterns in the graph, `view` and `addtocart` edges exist between nodes when a product is viewed or added to the cart. To keep the sample dataset as
-realistic as possible, `addtocart` edges are only created from a subset of the `view` edges that exist between a `person` and `product` node. These
-circumstances highlight Redis Graphs ability or utility as a [multigraph](https://en.wikipedia.org/wiki/Multigraph) -- when any node has parallel edges between itself and another node.  
+The edges in the system exist to represent the following actions or connections: 
 
-All of the relationships in this POC and post are directed, which are denoted by the arrows in the graph visualization.
+1. When a `person` _views_ a `product` -- shown as yellow directed lines
+2. When a `person` _adds a product_ to their cart -- shown as cyan directed lines 
+3. When a `person` places (_transacts_) an `order` which _contains_ a product -- shown as blue directed lines
+
+To keep the sample dataset as realistic as possible, `addtocart` edges are only created from a subset of the `view` edges
+that exist between a `person` and `product` node.  
+
+All of the relationships in this POC and post are directed, which are denoted by the arrows in the graph visualization. 
 
 ### Graph Generation
 
@@ -45,14 +61,14 @@ The [graph generation](https://github.com/joshdurbin/redis-graph-commerce-poc/bl
 1. The creation of independent nodes occurs via `create` statements. Three node "varieties" are created: `person`, `product`, and `order`. Technically the "variety" of a node is referred to as a label. 
 We'll step through distinct examples of each node - label creation. The following are the create statements used to insert these nodes into the graph.     
     
-    ```
-    CREATE (:person {
-        id: 4,
-        name:"Javier Bashirian",
-        age:94,
-        address:"36186 Koelpin Isle, Lake Rashidahaven, OH 78740",
-        memberSince:"2011-01-07T07:49:21.274235"})
-    ```
+    {{<highlightjs language="cypher">}}
+CREATE (:person {
+    id: 4,
+    name:"Javier Bashirian",
+    age:94,
+    address:"36186 Koelpin Isle, Lake Rashidahaven, OH 78740",
+    memberSince:"2011-01-07T07:49:21.274235"})
+    {{</highlightjs>}}
     
     The [`CREATE`](https://oss.redislabs.com/redisgraph/commands/#create) statement takes a node enclosed by parenthesis with its label defined with a colon and the label ex: `person`. Properties for nodes are defined 
     within the bounds of left and right curly brackets `{ }`. Each property must contain a string key separated by a colon and the value, which must equal one of
@@ -64,36 +80,36 @@ We'll step through distinct examples of each node - label creation. The followin
     
     In the following statement two nodes of the label `product` are created with their various properties.      
             
-    ```
-    CREATE
-        (:product {
-            id: 0,
-            name:"Mediocre Granite Shirt",
-            manufacturer:"Hoppe-Fahey",msrp:'812.68'}
-        ),
-        (:product {
-            id: 3,
-            name:"Awesome Iron Hat",
-            manufacturer:"Willms, Mills and Wolf",
-            msrp:'753.17'}
-        ))
-    ```
+    {{<highlightjs language="cypher">}}
+CREATE
+    (:product {
+        id: 0,
+        name:"Mediocre Granite Shirt",
+        manufacturer:"Hoppe-Fahey",msrp:'812.68'}
+    ),
+    (:product {
+        id: 3,
+        name:"Awesome Iron Hat",
+        manufacturer:"Willms, Mills and Wolf",
+        msrp:'753.17'}
+    ))
+    {{</highlightjs>}}
    
     Per the openCypher spec, nodes are supposed to support multiple labels and edges or relationships are supposed to support multiple types. As of this writing,
     RedisGraph does not support at least multiple node labels, but there is an [issue](https://github.com/RedisGraph/RedisGraph/issues/910) tracking that enhancement.   
     
     Our final node type created in this POC is of label `order`:    
          
-    ```
-    CREATE
-        (:order {
-            id: 2,
-            subTotal:1565.85,
-            tax:176,
-            shipping:208,
-            total:1949.85}
-        )
-    ```        
+    {{<highlightjs language="cypher">}}
+CREATE
+    (:order {
+        id: 2,
+        subTotal:1565.85,
+        tax:176,
+        shipping:208,
+        total:1949.85}
+    )
+    {{</highlightjs>}}        
 
 2. The next crucial component of this graph creation is the relationships/the edges -- they do the connecting,
 the entire reason for having a graph in the first place.
@@ -104,31 +120,28 @@ the entire reason for having a graph in the first place.
       
     Consider the following statement:  
     
-    ```
-    MATCH
-        (p:person), (o:order), (prd3:product), (prd0:product)
-    WHERE
-        p.id=4 AND o.id=2 AND prd3.id=3 AND prd0.id=0
-    CREATE
-        (p)-[:transact]->(o), (o)-[:contain]->(prd3), (o)-[:contain]->(prd0)
-    ```
+    {{<highlightjs language="cypher">}}
+MATCH (p:person), (o:order), (prd3:product), (prd0:product)
+WHERE p.id=4 AND o.id=2 AND prd3.id=3 AND prd0.id=0
+CREATE (p)-[:transact]->(o), (o)-[:contain]->(prd3), (o)-[:contain]->(prd0)
+    {{</highlightjs>}}
     
     This query instructs the graph to match and find nodes with labels `person`, `order`, and `product`. These look similar to the create statements before except the
     labels have a leading identifier prior to the colon and label declaration. These identifiers, termed an alias, `p`, `o`, `prd3`, and `prd0` are exclusive to the query.
     The aliases could be _anything_. However, the graph generation tooling uses sensible names for these aliases, though, which is why `prd3` and `prd0` are used. These aliases in and of themselves
     do not restrict us to "product 3" and "product 0". The restrictions to those product ids come in the `WHERE` segment of the query: 
     
-    ```
-    WHERE p.id=4 AND o.id=2 AND prd3.id=3 AND prd0.id=0
-    ```
+    {{<highlightjs language="cypher">}}
+WHERE p.id=4 AND o.id=2 AND prd3.id=3 AND prd0.id=0
+    {{</highlightjs>}}
     
     ...where alias `p`, which is a node label `person`, with property `id` equal to `4`, etc...
     
     Only when this conditional is met do we create our edges, our relationships:
     
-    ```
-    CREATE(p)-[:transact]->(o), (o)-[:contain]->(prd3), (o)-[:contain]->(prd0)
-    ```
+    {{<highlightjs language="cypher">}}
+CREATE (p)-[:transact]->(o), (o)-[:contain]->(prd3), (o)-[:contain]->(prd0)
+    {{</highlightjs>}}
     
     The `CREATE` statement here is creating three edges of types: `transact` and `contain`. The `create` statements
     are leveraging the same aliases we used for our `MATCH` statement, which now makes it a little more clear why they are
@@ -137,27 +150,25 @@ the entire reason for having a graph in the first place.
     The prior `MATCH` statement associated our `person`-labeled node with the created `order`-labeled node and the order
     with the `product`-labeled nodes the `order` contains. The next statement associates our `person` node with `product` nodes they've viewed and added to their carts.    
     
-    ```
-    MATCH
-        (p:person), (prd1:product), (prd3:product), (prd2:product), (prd0:product), (prd4:product)
-    WHERE
-        p.id=4 AND prd1.id=1 AND prd3.id=3 AND prd2.id=2 AND prd0.id=0 AND prd4.id=4
-    CREATE
-        (p)-[:view {time: '2018-07-18T15:54:21.274235'}]->(prd1),
-        (p)-[:view {time: '2013-04-16T02:10:21.274235'}]->(prd3),
-        (p)-[:view {time: '2012-10-22T15:51:21.274235'}]->(prd2),
-        (p)-[:view {time: '2012-11-05T18:29:21.274235'}]->(prd0),
-        (p)-[:view {time: '2017-09-02T15:22:21.274235'}]->(prd4),
-        (p)-[:addtocart {time: '2013-04-19T02:01:21.274235'}]->(prd3),
-        (p)-[:addtocart {time: '2012-11-07T14:43:21.274235'}]->(prd0)
-    ```
+    {{<highlightjs language="cypher">}}
+MATCH (p:person), (prd1:product), (prd3:product), (prd2:product), (prd0:product), (prd4:product)
+WHERE p.id=4 AND prd1.id=1 AND prd3.id=3 AND prd2.id=2 AND prd0.id=0 AND prd4.id=4
+CREATE
+    (p)-[:view {time: '2018-07-18T15:54:21.274235'}]->(prd1),
+    (p)-[:view {time: '2013-04-16T02:10:21.274235'}]->(prd3),
+    (p)-[:view {time: '2012-10-22T15:51:21.274235'}]->(prd2),
+    (p)-[:view {time: '2012-11-05T18:29:21.274235'}]->(prd0),
+    (p)-[:view {time: '2017-09-02T15:22:21.274235'}]->(prd4),
+    (p)-[:addtocart {time: '2013-04-19T02:01:21.274235'}]->(prd3),
+    (p)-[:addtocart {time: '2012-11-07T14:43:21.274235'}]->(prd0)
+    {{</highlightjs>}}
     
     This example has a few more aliases, but primarily differs from the other in that a property is set on the edge, on the relationship. Note that the syntax
     for doing so is identical to the nodes. 
     
-    ```
-    (p)-[:addtocart {time: '2012-11-07T14:43:21.274235'}]->(prd0)
-    ```
+    {{<highlightjs language="cypher">}}
+(p)-[:addtocart {time: '2012-11-07T14:43:21.274235'}]->(prd0)
+    {{</highlightjs>}}
    
     Types and syntax are the same for relationships as for nodes.
     
@@ -169,12 +180,11 @@ and the execution of the query using the redis command line tooling.
 1. Query the distinct labels in the graph. The following query will match any node, any match aliased with `n`, returning
 distinct results from the `labels()` function.
 
-    ```
-    match
-        (n)
-    return
-        distinct labels(n)
-    ```
+    {{<highlightjs language="cypher">}}
+match (n) return distinct labels(n)
+    {{</highlightjs>}}
+
+    Executed:
 
     ```
     127.0.0.1:6379> graph.query prodrec "match (n) return distinct labels(n)"
@@ -185,7 +195,9 @@ distinct results from the `labels()` function.
     3) 1) "Query internal execution time: 10.429400 milliseconds"
     ```
    
-   An alternative approach to this specific query is calling the `db.labels()` function. This is an optimized function and should be preferred for this type of query -- note the difference in response time. 
+   An alternative approach to this specific query is calling the `db.labels()` function. This is an optimized function and should be preferred for this type of query -- note the difference in response time.
+   
+   Executed: 
    
    ```
    127.0.0.1:6379> graph.query prodrec "call db.labels()"
@@ -199,12 +211,11 @@ distinct results from the `labels()` function.
 2. Query the distinct edges or relationships in the graph. The following query will match any directed relationship,
 aliased with `e`, between an un-aliased source and destination node of any label, returning distinct types from the `type()` function.
 
-    ```
-    match
-        ()-[e]->()
-    return
-        distinct type(e)
-    ```
+    {{<highlightjs language="cypher">}}
+match ()-[e]->() return distinct type(e)
+    {{</highlightjs>}}
+    
+    Executed:
 
     ```
     127.0.0.1:6379> graph.query prodrec "match ()-[e]->() return distinct type(e)"
@@ -231,12 +242,11 @@ aliased with `e`, between an un-aliased source and destination node of any label
    
 3. Query the distinct labels in the graph and obtain their counts -- similar to the aforementioned query in ex: #1, with an added `count`.
 
-    ```
-    match
-        (n)
-    return
-        distinct labels(n), count(n)
-    ```
+    {{<highlightjs language="cypher">}}
+match (n) return distinct labels(n), count(n)
+    {{</highlightjs>}}
+
+    Executed:
 
     ```
     127.0.0.1:6379> graph.query prodrec "match (n) return distinct labels(n), count(n)"
@@ -253,12 +263,11 @@ aliased with `e`, between an un-aliased source and destination node of any label
    
 4. Query the distinct edges (or relationships) in the graph -- similar to the aforementioned query in ex: #2, with an added `count`     
 
-    ```
-    match
-        ()-[e]->()
-    return
-        distinct type(e), count(e)
-    ```
+    {{<highlightjs language="cypher">}}
+match ()-[e]->() return distinct type(e), count(e)
+    {{</highlightjs>}}
+    
+    Executed:
     
     ```
     127.0.0.1:6379> graph.query prodrec "match ()-[e]->() return distinct type(e), count(e)"
@@ -278,14 +287,11 @@ aliased with `e`, between an un-aliased source and destination node of any label
 5. Obtain the id of a node. The following query will match a node of type `person` with the query alias `p`
 and the conditional, property, `id` == `3` returning the actual ID of the node via the `id` function.
 
-    ```
-    match
-        (p:person)
-    where
-        p.id=3
-    return
-        id(p)
-    ```
+    {{<highlightjs language="cypher">}}
+match (p:person) where p.id=3 return id(p)
+    {{</highlightjs>}}
+    
+    Executed:
 
     ```
     127.0.0.1:6379> graph.query prodrec "match (p:person) where p.id=3 return id(p)"
@@ -307,12 +313,11 @@ and the conditional, property, `id` == `3` returning the actual ID of the node v
 6. Obtain the id of a node. In this query, match statement is identical to the prior one, but here we
 specify the required property match in the node itself rather than with a `where` clause.
 
-    ```
-    match
-        (p:person {id: 3})
-    return
-        id(p)
-    ```
+    {{<highlightjs language="cypher">}}
+match (p:person {id: 3}) return id(p)
+    {{</highlightjs>}}
+   
+    Executed:
 
     ```
     127.0.0.1:6379> graph.query prodrec "match (p:person {id: 3}) return id(p)"
@@ -324,12 +329,11 @@ specify the required property match in the node itself rather than with a `where
 any directed relationship, aliased with `e`, between an un-aliased source and destination node of any label,
 returning the ID of the relationship via the `id` function.
 
-    ```
-    match
-        ()-[e]->()
-    return
-        id(e) limit 1
-    ```
+    {{<highlightjs language="cypher">}}
+match ()-[e]->() return id(e) limit 1
+    {{</highlightjs>}}
+    
+    Executed:
     
     ```
     127.0.0.1:6379> graph.query prodrec "match ()-[e]->() return id(e) limit 1"
@@ -344,12 +348,13 @@ returning the ID of the relationship via the `id` function.
 alias `p` with a directional edge of label `transact` to a node of label `order` with alias `o`. The `id`, `name`, and count as `orders` are returned in
 descending order and limited to 3.
 
-    ```
-    match
-        (p:person)-[:transact]->(o:order)
-    return p.id, p.name, count(o) as orders
-    order by orders desc limit 3
-    ``` 
+    {{<highlightjs language="cypher">}}
+match (p:person)-[:transact]->(o:order)
+return p.id, p.name, count(o) as orders
+order by orders desc limit 3
+    {{</highlightjs>}}
+    
+    Executed: 
 
     ```
     127.0.0.1:6379> graph.query prodrec "match (p:person)-[:transact]->(o:order) return p.id, p.name, count(o) as orders order by orders desc limit 3"
@@ -371,13 +376,13 @@ descending order and limited to 3.
 2. Return the top 3 most ordered products (`id` and `name` properties). This query will match a path where a node of label `order` with
     a directional edge of type `contain` with an alias `c` to a node of label `product` with alias `p`. The `id`, `name`, and count as `count` are returned and limited to 3.
 
-    ```
-    match
-        (:order)-[c:contain]->(p:product)
-    return
-        p.id, p.name, count(c) as count
-    order by count limit 3
-    ```
+    {{<highlightjs language="cypher">}}
+match (:order)-[c:contain]->(p:product)
+return p.id, p.name, count(c) as count
+order by count limit 3
+    {{</highlightjs>}}
+    
+    Executed:
 
     ```
     127.0.0.1:6379> graph.query prodrec "match (:order)-[c:contain]->(p:product) return p.id, p.name, count(c) as count order by count limit 3"
@@ -399,13 +404,13 @@ descending order and limited to 3.
 3. Return the top 3 most viewed products (`id` and `name` properties). This query will match a path where a node of label `person` with
 a directional edge of type `view` with alias `v` to a node of label `product` with alias `p`. The `id`, `name`, and count as `count` are returned and limited to 3.
 
-    ```
-    match
-        (:person)-[v:view]->(p:product)
-    return
-        p.id, p.name, count(v) as count
-    order by count limit 3
-    ```
+    {{<highlightjs language="cypher">}}
+match (:person)-[v:view]->(p:product)
+return p.id, p.name, count(v) as count
+order by count limit 3
+    {{</highlightjs>}}
+    
+    Executed:
 
     ```
     127.0.0.1:6379> graph.query prodrec "match (:person)-[v:view]->(p:product) return p.id, p.name, count(v) as count order by count limit 3"
@@ -427,13 +432,13 @@ a directional edge of type `view` with alias `v` to a node of label `product` wi
 4. Return the 3 fewest purchased products (`id` and `name` properties). This query will match a path where a node of label `order` with
 a directional edge of type `contain` with alias `c` to a node of label `product` with alias `p`. The `id`, `name`, and count as `count` are returned in descending order and limited to 3.
 
-    ```
-    match
-        (:order)-[c:contain]->(p:product)
-    return
-        p.id, p.name, count(c) as count
-    order by count desc limit 3
-    ```       
+    {{<highlightjs language="cypher">}}
+match (:order)-[c:contain]->(p:product)
+return p.id, p.name, count(c) as count
+order by count desc limit 3
+    {{</highlightjs>}}    
+    
+    Executed:   
 
     ```
     127.0.0.1:6379> graph.query prodrec "match (:order)-[c:contain]->(p:product) return p.id, p.name, count(c) as count order by count desc limit 3"
@@ -455,13 +460,13 @@ a directional edge of type `contain` with alias `c` to a node of label `product`
 5. Return products not purchased. This query will match a path for every node of label `product` with alias `p` where no node of label `order` with directional edge
 type `contain` points to said `product`-labeled node `p`. Return the count.
     
-    ```
-    match
-        (p:product)
-    where not
-        (:order)-[:contain]->(p)
-    return count(p)
-    ```    
+    {{<highlightjs language="cypher">}}
+match (p:product)
+where not (:order)-[:contain]->(p)
+return count(p)
+    {{</highlightjs>}}
+    
+    Executed:    
     
     ```
     127.0.0.1:6379> graph.query prodrec "match (p:product) where not (:order)-[:contain]->(p) return count(p)"
@@ -475,22 +480,15 @@ type `contain` points to said `product`-labeled node `p`. Return the count.
 6. Queries can be strung together linearly using [`with`](https://oss.redislabs.com/redisgraph/commands/#with) allowing for their individual execution
 and results handling. Consider the following example where we want the count of `view`, `addtocart`, and `contain`-typed edges along with a `product`-labled node's `name`.
 
-    ```
-    match
-        (prod:product {id: 393})<-[c:contain]-(:order)
-    with
-        prod, count(c) as orders
-    match
-        (prod)<-[atc:addtocart]-(:person)
-    with
-        prod, orders, count(atc) as addstocarts
-    match
-        (prod)<-[v:view]-(:person)
-    with
-        prod, orders, addstocarts, count(v) as views
-    return
-        prod.name, orders, addstocarts, views      
-    ```
+    {{<highlightjs language="cypher">}}
+match (prod:product {id: 393})<-[c:contain]-(:order)
+with prod, count(c) as orders
+match (prod)<-[atc:addtocart]-(:person)
+with prod, orders, count(atc) as addstocarts
+match (prod)<-[v:view]-(:person)
+with prod, orders, addstocarts, count(v) as views
+return prod.name, orders, addstocarts, views      
+    {{</highlightjs>}}
    
     The initial `product`-labeled node aliased with `prod` is matched based off the `id` property set to `393`.
     
@@ -503,7 +501,9 @@ and results handling. Consider the following example where we want the count of 
     - In the final "match with" we take the three inputs and create a path from the passed `prod` from a `person`-labeled node via the `view`-typed edge with an
     alias `v`.
     
-    The final return statement returns the product name along with each value.  
+    The final return statement returns the product name along with each value.
+    
+    Executed:  
    
     ```
     127.0.0.1:6379> graph.query prodrec "MATCH (prod:product {id: 393})<-[c:contain]-(:order) WITH prod, count(c) as orders MATCH (prod)<-[atc:addtocart]-(:person) WITH prod, orders, count(atc) as addstocarts MATCH (prod)<-[v:view]-(:person) WITH prod, orders, addstocarts, count(v) as views return prod.name, orders, addstocarts, views"
@@ -522,31 +522,24 @@ and results handling. Consider the following example where we want the count of 
 some action when "on match" or "on create" conditions are met. Take the following example where instead of computing the values from
 the last example each time, we wanted to periodically set them on the nodes themselves.     
 
-    ```
-    match
-        (prod:product)<-[c:contain]-(:order)
-    with
-        prod, count(c) as orders
-    match
-        (prod)<-[atc:addtocart]-(:person)
-    with
-        prod, orders, count(atc) as addstocarts
-    match
-        (prod)<-[v:view]-(:person)
-    with
-        prod, orders, addstocarts, count(v) as views
-    merge
-        (prod)
-    on match set
-        prod.num_orders = orders, prod.num_adds_to_carts = addstocarts, prod.num_views = views
-    return
-        prod.id, orders, addstocarts, views
-    ```
+    {{<highlightjs language="cypher">}}
+match (prod:product)<-[c:contain]-(:order)
+with prod, count(c) as orders
+match (prod)<-[atc:addtocart]-(:person)
+with prod, orders, count(atc) as addstocarts
+match (prod)<-[v:view]-(:person)
+with prod, orders, addstocarts, count(v) as views
+merge (prod)
+on match set prod.num_orders = orders, prod.num_adds_to_carts = addstocarts, prod.num_views = views
+return prod.id, orders, addstocarts, views
+    {{</highlightjs>}}
    
     This query very similar to the first except for a few ways. The initial `match` statement doesn't single out a particular product.
     A merge statement exists on the `prod` alias for the `product`-labeled node that was "match with"-ed three times. On a match, the
     statement takes the passed values at establishes them on the `product`-labeled node itself. The values are returned along with
     the product id.
+    
+    Executed (with omitted nodes):
 
     ```
     127.0.0.1:6379> graph.query prodrec "MATCH (prod:product)<-[c:contain]-(:order) WITH prod, count(c) as orders MATCH (prod)<-[atc:addtocart]-(:person) WITH prod, orders, count(atc) as addstocarts MATCH (prod)<-[v:view]-(:person) WITH prod, orders, addstocarts, count(v) as views merge (prod) ON MATCH SET prod.num_orders = orders, prod.num_adds_to_carts = addstocarts, prod.num_views = views return prod.id, orders, addstocarts, views"
@@ -559,14 +552,14 @@ the last example each time, we wanted to periodically set them on the nodes them
           3) (integer) 33
           4) (integer) 127
    
-    // ommitted nodes //
+    // omitted nodes //
    
      406) 1) (integer) 393
           2) (integer) 30
           3) (integer) 33
           4) (integer) 131
    
-    // ommitted nodes //
+    // omitted nodes //
    
     1000) 1) (integer) 999
           2) (integer) 27
@@ -576,7 +569,13 @@ the last example each time, we wanted to periodically set them on the nodes them
     2) "Query internal execution time: 263.394600 milliseconds"    
     ```
    
-    Here we query for the node via `match (p:product) where p.id=333 return p` in RedisInsight to produce and show the results from the `merge`.
+    Here we query for the node via:
+    
+    {{<highlightjs language="cypher">}}
+match (p:product) where p.id=333 return p    
+    {{</highlightjs>}}
+    
+    ... in RedisInsight to produce and show the results from the `merge`.
     
     ![image](/img/2020-5-redis-graph-product-recommendation-opencypher/merged_prod_node.png)
              
@@ -590,13 +589,11 @@ approach to recommendations where we want to show all the `product` nodes that s
 
 1. Find products that are in orders that have common products placed by person id 294. Limit results to 1 (so this blog post isn't terribly long).
 
-    ```
-    match
-        (p:person)-[:transact]->(:order)-[:contain]->(:product)<-[:contain]-(:order)-[:contain]->(prd:product)
-    where
-        p.id=294
-    return distinct prd limit 1
-    ``` 
+    {{<highlightjs language="cypher">}}
+match (p:person)-[:transact]->(:order)-[:contain]->(:product)<-[:contain]-(:order)-[:contain]->(prd:product)
+where p.id=294
+return distinct prd limit 1
+    {{</highlightjs>}} 
 
     This statement really shows the benefit of cypher over something like SQL, which would require many joins to accomplish the same query. Here we trace the path,
     telling the graph to match `people`-labeled nodes, through the `product`-labeled nodes they've purchased to the `product`-labeled nodes of all orders that
@@ -604,6 +601,8 @@ approach to recommendations where we want to show all the `product` nodes that s
     
     This query only aliases the `person` labeled node at the start `p` and the `product` labeled node at the end `prd`. Given, though,
     that `p` only exists so that can use it to filter based on its id in the `where` clause.
+    
+    Executed:
     
     ```
     127.0.0.1:6379> graph.query prodrec "match (p:person)-[:transact]->(:order)-[:contain]->(:product)<-[:contain]-(:order)-[:contain]->(prd:product) where p.id=294 return distinct prd limit 1"
@@ -626,31 +625,29 @@ approach to recommendations where we want to show all the `product` nodes that s
   
     This could be re-written as:
     
-    ```
-    match
-        (p:person { id: 294 })-[:transact]->(:order)-[:contain]->(:product)<-[:contain]-(:order)-[:contain]->(prd:product)
-    return distinct prd   
-    ```   
+    {{<highlightjs language="cypher">}}
+match (p:person { id: 294 })-[:transact]->(:order)-[:contain]->(:product)<-[:contain]-(:order)-[:contain]->(prd:product)
+return distinct prd   
+    {{</highlightjs>}}   
     
     This query returns the alias for `product`, `prd`, itself and therefor we get all the details for that node.
     
 2. The following is a minor variation over the last example where we go a step further to remove the users purchased products from the list of recommendations.
 
-    ```
-    match
-        (p:person { id: 294 })-[:transact]->(:order)-[:contain]->(prod:product)
-    match
-        (prod)<-[:contain]-(:order)-[:contain]->(rec_prod:product)
-    where not
-        (p)-[:transact]->(:order)-[:contain]->(rec_prod)
-    return distinct rec_prod.id, rec_prod.name
-    ```
+    {{<highlightjs language="cypher">}}
+match (p:person { id: 294 })-[:transact]->(:order)-[:contain]->(prod:product)
+match (prod)<-[:contain]-(:order)-[:contain]->(rec_prod:product)
+where not (p)-[:transact]->(:order)-[:contain]->(rec_prod)
+return distinct rec_prod.id, rec_prod.name
+    {{</highlightjs>}}
    
     This statement shows us splitting up the work between multiple `match` directives. In the first we resolve the `person`-labeled node
     with the `id` property set to `294` and return all the `product`-labeled nodes in said persons orders aliased by `prod`.
     
     In the second we take each `product`-labled node (`prod` alias) and look for all "products of products" where that product is not in a
     transacted order by said person.
+    
+    Executed:
    
     ```
     127.0.0.1:6379> graph.query prodrec "match (p:person { id: 294 })-[:transact]->(:order)-[:contain]->(prod:product) match (prod)<-[:contain]-(:order)-[:contain]->(rec_prod:product) where not (p)-[:transact]->(:order)-[:contain]->(rec_prod) return distinct rec_prod.id, rec_prod.name limit 1"
@@ -666,21 +663,18 @@ approach to recommendations where we want to show all the `product` nodes that s
 
 3. Returning the most popular 3 products as defined by inbound relationships to each product -- this query builds on the former.
 
-    ```
-    match
-        (p:person { id: 294 })-[:transact]->(:order)-[:contain]->(prod:product)
-    match
-        (prod)<-[:contain]-(:order)-[:contain]->(rec_prod:product)
-    where not
-        (p)-[:transact]->(:order)-[:contain]->(rec_prod)
-    return
-        rec_prod.id, rec_prod.name
-    order by
-        indegree(prod) desc limit 3  
-    ```
+    {{<highlightjs language="cypher">}}
+match (p:person { id: 294 })-[:transact]->(:order)-[:contain]->(prod:product)
+match (prod)<-[:contain]-(:order)-[:contain]->(rec_prod:product)
+where not (p)-[:transact]->(:order)-[:contain]->(rec_prod)
+return rec_prod.id, rec_prod.name
+order by indegree(prod) desc limit 3  
+    {{</highlightjs>}}
    
     Here we layer in a crude attempt at finding the popularity of the product by using the [node function](https://oss.redislabs.com/redisgraph/commands/#node-functions)
     that returns the number of inbound connections, or relationships, or edges for each product.
+    
+    Executed:
     
     ```
     127.0.0.1:6379> graph.query prodrec "match (p:person { id: 294 })-[:transact]->(:order)-[:contain]->(prod:product) match (prod)<-[:contain]-(:order)-[:contain]->(rec_prod:product) where not (p)-[:transact]->(:order)-[:contain]->(rec_prod) return rec_prod.id, rec_prod.name order by indegree(prod) desc limit 3"
@@ -697,18 +691,13 @@ approach to recommendations where we want to show all the `product` nodes that s
    
     If the query is re-written to return the `product`-labeled nodes themselves we can produce a graph in RedisInsight.
     
-    ```
-    match
-        (p:person { id: 294 })-[:transact]->(:order)-[:contain]->(prod:product)
-    match
-        (prod)<-[:contain]-(:order)-[:contain]->(rec_prod:product)
-    where not
-        (p)-[:transact]->(:order)-[:contain]->(rec_prod)
-    return
-        rec_prod
-    order by
-        indegree(prod) desc limit 3  
-    ```
+    {{<highlightjs language="cypher">}}
+match (p:person { id: 294 })-[:transact]->(:order)-[:contain]->(prod:product)
+match (prod)<-[:contain]-(:order)-[:contain]->(rec_prod:product)
+where not (p)-[:transact]->(:order)-[:contain]->(rec_prod)
+return rec_prod
+order by indegree(prod) desc limit 3  
+    {{</highlightjs>}}
    
     ![image](/img/2020-5-redis-graph-product-recommendation-opencypher/indegree_query.png)
     
@@ -726,30 +715,32 @@ approach to recommendations where we want to show all the `product` nodes that s
         
 4. The final example of recommendations is a query inspired by a work colleague of mine, [Matthew Huckaby](https://www.linkedin.com/in/matthew-huckaby-928ab02/) (on [Twitter](http://twitter.com/makingElements) and [GH](https://github.com/mhuckaby)).
 In this query we want to find the top 3 products (`id` and `name`) viewed by people who have purchased queried product, id `393`.
-
-    ```
-    match
-        (p:person)-[:transact]->(:order)-[:contain]->(:product { id: 393 })
-    with
-        p
-    match
-        (p)-[v:view]->(prod:product)
-    return
-        prod.id, prod.name, count(v)
-    order by count(v) desc limit 3   
-    ```
-
-    Here we specify the match on the path originating from a `person`-labeled node with alias `p` to the `order`-labeled node via the `transact`-typed
-    edge. From that un-aliased `order`-labeled node we require a connection to an un-aliased `product`-labeled node (with the `id` property set to `393`)
-    via the `contain`-typed edge. Each person `p` is returned from the `match`.
+   
+    {{<highlightjs language="cypher">}}
+match (prod:product)<-[v:view]-(p:person)-[:transact]->(:order)-[:contain]->(:product { id: 393 })
+return prod.id, prod.name, count(v) as count
+order by count desc limit 3       
+    {{</highlightjs>}}
+   
+    In this query we specify a path to match against that points in both directions -- which can be a bit mind blowing the first
+    time you try an decipher... the cypher. Ha.
     
-    Next up we match `product`-labeled nodes connected from each `person`-labeled node `p` (that was passed from the prior match) via the `view`-typed
-    edge with the alias `v`.
+    Let's start in the "center" with our `person`-labeled node with the alias `p`. To the right we're asking for `transact`-typed edges pointing inbound
+    to `order`-labeled nodes. The order nodes should have `contain`-typed edges pointing inbound to a `product`-labeled node. This node is the node we query
+    against with the `id` property set to `393`. Note that only the `person` node is aliased because everything else is just to query / filter for
+    match against.
     
-    The product `id`, `name`, and count of `view`-edges are returned from the query in descending order of the `view`-edge count and limited to 3.         
+    To the left of the `person` node we have an inbound relationship requirement of `view` with the alias `v` inbound to a `product` node
+    with the alias `prod`.
+    
+    The return statement pulls the product `id` and `name` properties in addition to the count of `v` which gives us `views` within the path match.
+    
+    From there things are smooth sailing with ordering and limits.
+    
+    Executed:            
    
     ```
-    127.0.0.1:6379> graph.query prodrec "match (p:person)-[:transact]->(:order)-[:contain]->(:product { id: 393 }) with p match (p)-[v:view]->(prod:product) return prod.id, prod.name, count(v) order by count(v) desc limit 3"
+    127.0.0.1:6379> graph.query prodrec "match (prod:product)<-[v:view]-(p:person)-[:transact]->(:order)-[:contain]->(:product { id: 393 }) return prod.id, prod.name, count(v) order by count(v) desc limit 3"
     1) 1) "prod.id"
        2) "prod.name"
        3) "count(v)"
@@ -762,8 +753,15 @@ In this query we want to find the top 3 products (`id` and `name`) viewed by peo
        3) 1) (integer) 266
           2) "Practical Cotton Shoes"
           3) (integer) 5
-    3) 1) "Query internal execution time: 5.658700 milliseconds"
+    3) 1) "Query internal execution time: 10.226500 milliseconds"
     ```                
+   
+### What's next?
+
+I hope you found this informative. Tinkering with Cypher/openCypher definitely requires clearing some mental hurdles in understanding. I find
+using a mix of technical docs with specific, broken down examples a great way of reinforcing learning.
+
+The next few posts will be on the topics of performance and further optimizations to the query.   
 
 ### Additional Reading
 

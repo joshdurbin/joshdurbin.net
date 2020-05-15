@@ -63,11 +63,6 @@ Commerce Graph Generator
 
 Internally, the script runs through a number of steps to make the graph generation very, very quick compared to the last iteration. The dependency directives (Grapes) and imports are omitted.
 
-{{<mermaid align="left">}}
-graph LR
-   setup --> a["more complex"] --> d & c--> d
-{{< /mermaid >}}
-
 1. CLI builder initializes to setup and provide input verification -- this takes a good number lines of code, unfortunately, but makes things pretty from a user / usability perspective
 
 ```groovy
