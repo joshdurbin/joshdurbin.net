@@ -31,7 +31,7 @@ This script requires the installation of Java 11 and Groovy. Dependencies are au
 
 ### Obtaining and Usage
 
-If you pull down the `generateCommerceGraph` script itself:
+Pull down the `generateCommerceGraph` script itself:
 
 ```shell script
 wget https://raw.githubusercontent.com/joshdurbin/redis-graph-commerce-poc/master/generateCommerceGraph
