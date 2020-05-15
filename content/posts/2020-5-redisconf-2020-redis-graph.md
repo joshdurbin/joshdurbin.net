@@ -16,3 +16,10 @@ The first is "A Practical Introduction to RedisGraph", by [Guy Royse](https://tw
 The second is a deeper dive into what's happening under the hood; "RedisGraph 2.2: The Fastest Way to Query Your Highly Connected Data in Redis", by [Roi Lipman](https://twitter.com/roilipman).
 
 {{< youtube JNpHba2kRGM >}}
+
+### 2019 Videos
+
+Roi Lipman also gave a talk titled "Deep Dive into RedisGraph" back in May of 2019 that highlights a few different aspects of query planning, traversal, and the linear
+algebra under the hood that allows RedisGraph to shine.
+
+{{< youtube 4KS2MRccQX4 >}} 

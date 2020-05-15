@@ -2,6 +2,7 @@
 title = "Product Recommendations in RedisGraph, Part 1: Data loading"
 date = "2020-01-16"
 tags = ["graph", "redis", "recommendations", "data", "opencypher", "redisgraph"]
+highlightjs = true
 +++
 
 This post is part of a [series]({{< ref "/tags/recommendations" >}}) on leveraging RedisGraph for product recommendations.
@@ -216,7 +217,13 @@ OK
 (0.53s)
 ```
 
-...and you can query for data:
+...and you can query for data using a query like:
+
+{{<highlightjs language="cypher">}}
+match (p:person) where p.id=200 return p.name
+{{</highlightjs>}}
+
+Executed:
 
 ```
 127.0.0.1:6379> graph.query prodrec "match (p:person) where p.id=200 return p.name"
@@ -242,7 +249,13 @@ Once you've got that running, do the following:
 Now, a few things to be aware of when you're using RedisInsigh for RedisGraph:
 
 - Here we don't need to prefix calls to Redis using `graph.query`
-- When you return a vertex from a query, say: `match (p:person) where p.id=199 return p` a visualization of the graph will render.
+- When you return a vertex from a query, say:
+
+{{<highlightjs language="cypher">}}
+match (p:person) where p.id=199 return p
+{{</highlightjs>}}
+
+...a visualization of the graph will render.
 
 ![image](/img/2020-1-redis-graph-product-recommendation-part-1-data-loading/visual-part-0.png)
 
