@@ -6,34 +6,65 @@ tags = ["graph", "redis", "recommendations", "data", "opencypher", "redisgraph"]
 
 This post is part of a [series]({{< ref "/tags/recommendations" >}}) on leveraging RedisGraph for product recommendations.
 
-This post is to discuss changes to the [graph generator](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/master/generateCommerceGraph). I've put a decent chunk of effort into tweaking the performance, configurability, etc.. of the generator and you might ask yourself why? Why spend time generating fake data? Well, a few things:
+This post is to discuss changes to the [graph generator](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/master/generateCommerceGraph). I've put
+a decent chunk of effort into tweaking the performance, configurability, etc.. of the generator and you might ask yourself why? Why spend time
+generating fake data? Well, a few things:
 
-1. Earlier this month RedisGraph [released version 2.0](https://redislabs.com/blog/introducing-redisgraph-2-0/) which includes a ton of really great updates and performance/stability wins. That said, though RedisGraph is continually improving its resiliency and stability, it does occasionally bonk and when it does, so does your data. So, it can be helpful to understand the most efficient way of getting data into RedisGraph, performance bottlenecks, etc...
+1. Earlier this month RedisGraph [released version 2.0](https://redislabs.com/blog/introducing-redisgraph-2-0/) which includes a ton of really great
+updates and performance/stability wins. That said, though RedisGraph is continually improving its resiliency and stability, it does occasionally
+bonk and when it does, so does your data. So, it can be helpful to understand the most efficient way of getting data into RedisGraph,
+performance bottlenecks, etc...
 2. Altering the "shape" and "depth" of data drastically changes performance impact of queries, DB snapshotting, sync and startup performance, etc...
-3. The data is as realistic as I could make fake data; ex:
+3. Though the data is fake, it is realistic in that:
   - people (customers) have join dates and orders are always after
   - add to cart events are a subset of product view events
   - purchased events are randomized across orders for a customer and they only purchase products from the pool of products added to their cart
   - pricing is realistic, cost, shipping, tax, etc...
 
-So, what sort of things can we tweak about the graph creation?
+### Installation
 
-1. The (min/max) number of people created
-2. The (min/max) number of products created
-3. The (min/max) views for a person and product
-4. The percentage of views for a person which "upgrade" to add to cart events
-5. The percentage of add to cart events which "upgrade" to purchased events
-6. The max random time from viewed to add to cart
-7. The max random time from add to cart to purchased
-8. The (min/max) product price, tax rate for orders, ship rate for orders
-9. Other utility things, such as the redis endpoint details, batch sizes for commits, thread count, etc...
+This script requires the installation of Java 11 and Groovy. Dependencies are automatically pulled from Maven repositories based on the Grape'd annotations.
 
-Running the utility is straight forward, all you need is Java 11 (I'm using OpenJDK 11) and Groovy 3.x. There are many maven dependencies which are loaded automatically via the Grape directives in the script.
+- Java (11 OpenJDK)
+- Groovy 3
+- RedisGraph
 
-Here's a snapshot, output of the help menu for the script. The script requires no parameters and will use the defaults stated in the help menu below.
+### Obtaining and Usage
+
+If you pull down the `generateCommerceGraph` script itself:
 
 ```shell script
-./generateCommerceGraph -h
+wget https://raw.githubusercontent.com/joshdurbin/redis-graph-commerce-poc/master/generateCommerceGraph
+chmod u+x generateCommerceGraph
+```
+
+At this point, with RedisGraph available at `localhost:6379`, you can just run `./generateCommerceGraph` to produce a graph. The graph
+generation will be shown in two steps (1) to create the `person` and `product` nodes and (2) to create the occasional `order` node and all
+the connecting edges.  
+
+```shell script
+./generateCommerceGraph
+(:person) and (:product) 100% │█████████████████████████████████████████████████████████████████████████│ 6000/6000 (0:00:02 / 0:00:00) 
+(:order), [:view], [:addtocart], [:transact], and [:contain] 100% │█████████████████████████████████████│ 5000/5000 (0:00:59 / 0:00:00) 
+Finished creating 5000 'person', 1000 'product', 11713 'order', 120153 'view' edges, 31316 'addtocart' edges, 11713 'transact' edges, and 28571 'contain' products edges.
+```
+
+There are a number of interesting knobs in the graph generation you can tweak; knobs in probability and lower/upper bounds of things, such as:
+
+- The (min/max) number of people created
+- The (min/max) number of products created
+- The (min/max) views for a person and product
+- The percentage of views for a person which “upgrade” to add to cart events
+- The percentage of add to cart events which “upgrade” to purchased events
+- The max random time from viewed to add to cart
+- The max random time from add to cart to purchased
+- The (min/max) product price, tax rate for orders, ship rate for orders
+- Other utility things, such as the redis endpoint details, batch sizes for commits, thread count, etc…
+
+An exhaustive list of options can be output requesting the help menu `./generateCommerceGraph --help`:
+
+```shell script
+./generateCommerceGraph --help
 usage: generateCommerceGraph
 Commerce Graph Generator
  -db,--database <arg>                                         The RedisGraph database to use for our queries, data generation [defaults to prodrec]
@@ -59,428 +90,84 @@ Commerce Graph Generator
  -rh,--redisHost <arg>                                        The host of the Redis instance with the RedisGraph module installed to use for graph creation. [defaults to localhost]
  -rp,--redisPort <arg>                                        The port of the Redis instance with the RedisGraph module installed to use for graph creation. [defaults to 6379]
  -tc,--threadCount <arg>                                      The thread count to use [defaults to 6]
- ```
-
-Internally, the script runs through a number of steps to make the graph generation very, very quick compared to the last iteration. The dependency directives (Grapes) and imports are omitted.
-
-1. CLI builder initializes to setup and provide input verification -- this takes a good number lines of code, unfortunately, but makes things pretty from a user / usability perspective
-
-```groovy
-def progressBarUpdateInterval = 200
-
-// defaults must be strings for CliBuilder
-def defaultDB = 'prodrec'
-def defaultThreadCount = "${new SystemInfo().hardware.processor.physicalProcessorCount}"
-def defaultMaxPotentialViews = '50'
-def defaultMinPotentialViews = '0'
-def defaultPercentageOfViewsToAddToCart = '25'
-def defaultPercentageOfAddToCartToPurchase = '90'
-def defaultMaxRandomTimeFromViewToAddToCartInMinutes = '4320'
-def defaultMaxRandomTimeFromAddToCartToPurchased = '4320'
-def defaultMaxPastDate = "${365 * 20}"
-def defaultMaxPotentialPeopleToCreate = '5001'
-def defaultMinPotentialPeopleToCreate = '5000'
-def defaultMaxPotentialProductsToCreate = '1001'
-def defaultMinPotentialProductsToCreate = '1000'
-def defaultNodeCreationBatchSize = '500'
-def defaultMaxTaxRate = '0.125'
-def defaultMinTaxRate = '0.0'
-def defaultMaxShipRate = '0.15'
-def defaultMinShipRate = '0.0'
-def defaultMaxPerProductPrice = '1000.00'
-def defaultMinPerProductPrice = '0.99'
-def defaultRedisHost = 'localhost'
-def defaultRedisPort = '6379'
-
-def cli = new CliBuilder(header: 'Commerce Graph Generator', usage:'generateCommerceGraph', width: -1)
-cli.maxv(longOpt: 'maxPotentialViews', "The max number of potential views a person can have against a product [defaults to ${defaultMaxPotentialViews}]", args: 1, defaultValue: defaultMaxPotentialViews)
-cli.minv(longOpt: 'minPotentialViews', "The min number of potential views a person can have against a product [defaults to ${defaultMinPotentialViews}]", args: 1, defaultValue: defaultMinPotentialViews)
-cli.peratc(longOpt: 'percentageOfViewsToAddToCart', "The percentage of views to turn into add-to-cart events for a given person and product [defaults to ${defaultPercentageOfViewsToAddToCart}]", args: 1, defaultValue: defaultPercentageOfViewsToAddToCart)
-cli.perpur(longOpt: 'percentageOfAddToCartToPurchase', "The percentage of add-to-cart into purchase events for a given person and product [defaults to ${defaultPercentageOfAddToCartToPurchase}]", args: 1, defaultValue: defaultPercentageOfAddToCartToPurchase)
-cli.maxatct(longOpt: 'maxRandomTimeFromViewToAddToCartInMinutes', "The max random time from view to add-to-cart for a given user and product [defaults to ${defaultMaxRandomTimeFromViewToAddToCartInMinutes}]", args: 1, defaultValue: defaultMaxRandomTimeFromViewToAddToCartInMinutes)
-cli.maxpurt(longOpt: 'maxRandomTimeFromAddToCartToPurchased', "The max random time from add-to-cart to purchased for a given user and product[defaults to ${defaultMaxRandomTimeFromAddToCartToPurchased}]", args: 1, defaultValue: defaultMaxRandomTimeFromAddToCartToPurchased)
-cli.maxpd(longOpt: 'maxPastDate', "The max date in the past for the memberSince field of a given user [defaults to ${defaultMaxPastDate}]", args: 1, defaultValue: defaultMaxPastDate)
-cli.maxpeeps(longOpt: 'maxPotentialPeopleToCreate', "The max number of people to create [defaults to ${defaultMaxPotentialPeopleToCreate}]", args: 1, defaultValue: defaultMaxPotentialPeopleToCreate)
-cli.minpeeps(longOpt: 'minPotentialPeopleToCreate', "The min number of people to create [defaults to ${defaultMinPotentialPeopleToCreate}]", args: 1, defaultValue: defaultMinPotentialPeopleToCreate)
-cli.maxprods(longOpt: 'maxPotentialProductsToCreate', "The max number of products to create [defaults to ${defaultMaxPotentialProductsToCreate}]", args: 1, defaultValue: defaultMaxPotentialProductsToCreate)
-cli.minprods(longOpt: 'minPotentialProductsToCreate', "The min number of products to create [defaults to ${defaultMinPotentialProductsToCreate}]", args: 1, defaultValue: defaultMinPotentialProductsToCreate)
-cli.ncbs(longOpt: 'nodeCreationBatchSize', "The batch size to use for writes when creating people and products [defaults to ${defaultNodeCreationBatchSize}]", args: 1, defaultValue: defaultNodeCreationBatchSize)
-cli.maxtax(longOpt: 'maxTaxRate', "The max tax rate for an order [defaults to ${defaultMaxTaxRate}]", args: 1, defaultValue: defaultMaxTaxRate)
-cli.mintax(longOpt: 'minTaxRate', "The min tax rate for an order [defaults to ${defaultMinTaxRate}]", args: 1, defaultValue: defaultMinTaxRate)
-cli.maxship(longOpt: 'maxShipRate', "The max ship rate for an order [defaults to ${defaultMaxShipRate}]", args: 1, defaultValue: defaultMaxShipRate)
-cli.minship(longOpt: 'minShipRate', "The min ship rate for an order [defaults to ${defaultMinShipRate}]", args: 1, defaultValue: defaultMinShipRate)
-cli.maxppp(longOpt: 'maxPerProductPrice', "The max price per product [defaults to ${defaultMaxPerProductPrice}]", args: 1, defaultValue: defaultMaxPerProductPrice)
-cli.minppp(longOpt: 'minPerProductPrice', "The min price per product [defaults to ${defaultMinPerProductPrice}]", args: 1, defaultValue: defaultMinPerProductPrice)
-cli.db(longOpt: 'database', "The RedisGraph database to use for our queries, data generation [defaults to ${defaultDB}]", args: 1, defaultValue: defaultDB)
-cli.tc(longOpt: 'threadCount', "The thread count to use [defaults to ${defaultThreadCount}]", args: 1, defaultValue: defaultThreadCount)
-cli.rh(longOpt: 'redisHost', "The host of the Redis instance with the RedisGraph module installed to use for graph creation. [defaults to ${defaultRedisHost}]", args: 1, defaultValue: defaultRedisHost)
-cli.rp(longOpt: 'redisPort', "The port of the Redis instance with the RedisGraph module installed to use for graph creation. [defaults to ${defaultRedisPort}]", args: 1, defaultValue: defaultRedisPort)
-cli.h(longOpt: 'help', 'Usage Information')
-
-// parse and validate options
-def cliOptions = cli.parse(args)
-
-if (!cliOptions) {
-  cli.usage()
-  System.exit(-1)
-}
-
-if (cliOptions.help) {
-  cli.usage()
-  System.exit(0)
-}
-
-def printErr = System.err.&println
-
-// closure for validating min/max are discrete
-def validateParams = { variable, min, max ->
-  if (min == max) {
-    printErr("Min and max values must be discrete. Current for ${variable} are ${min} and ${max}")
-    cli.usage()
-    System.exit(-1)
-  }
-}
-
-def maxPotentialViews = cliOptions.maxPotentialViews as Integer
-def minPotentialViews = cliOptions.minPotentialViews as Integer
-validateParams('Potential Views', minPotentialViews, maxPotentialViews)
-
-def percentageOfViewsToAddToCart = cliOptions.percentageOfViewsToAddToCart as Integer
-def percentageOfAddToCartToPurchase = cliOptions.percentageOfAddToCartToPurchase as Integer
-def maxRandomTimeFromViewToAddToCartInMinutes = cliOptions.maxRandomTimeFromViewToAddToCartInMinutes as Integer
-def maxRandomTimeFromAddToCartToPurchased = cliOptions.maxRandomTimeFromAddToCartToPurchased as Integer
-def maxPastDate = cliOptions.maxPastDate as Integer
-def maxPotentialPeopleToCreate = cliOptions.maxPotentialPeopleToCreate as Integer
-def minPotentialPeopleToCreate = cliOptions.minPotentialPeopleToCreate as Integer
-validateParams('Created People', minPotentialPeopleToCreate, maxPotentialPeopleToCreate)
-
-def maxPotentialProductsToCreate = cliOptions.maxPotentialProductsToCreate as Integer
-def minPotentialProductsToCreate = cliOptions.minPotentialProductsToCreate as Integer
-validateParams('Created Products', minPotentialProductsToCreate, maxPotentialProductsToCreate)
-
-def nodeCreationBatchSize = cliOptions.nodeCreationBatchSize as Integer
-def maxTaxRate = cliOptions.maxTaxRate as Double
-def minTaxRate = cliOptions.minTaxRate as Double
-validateParams('Tax Rate', minTaxRate, maxTaxRate)
-
-def maxShipRate = cliOptions.maxShipRate as Double
-def minShipRate = cliOptions.minShipRate as Double
-validateParams('Ship Rate', minShipRate, maxShipRate)
-
-def maxPerProductPrice = cliOptions.maxPerProductPrice as Double
-def minPerProductPrice = cliOptions.minPerProductPrice as Double
-validateParams('Product Price', minPerProductPrice, maxPerProductPrice)
 ```
 
-2. Objects are declared that are used for generation and persistence; Person, Product, Order, and Event (a class used to represent edges in the system)
+### Peering Behind the Curtain
 
-```groovy
-// this is used for consistent label/type keys through the generation script
-@Singleton class GraphKeys {
-  def personNodeType = 'person'
-  def productNodeType = 'product'
-  def orderNodeType = 'order'
-  def viewEdgeType = 'view'
-  def addToCartEdgeType = 'addtocart'
-  def transactEdgeType = 'transact'
-  def containEdgeType = 'contain'
-}
+Assuming that you're running RedisGraph in Docker as described in the last post in the series, you can easily connect a Redis client to the instance
+and run `monitor` to see what commands are hitting the RedisGraph instance as it creates nodes and relationships.
 
-def globalOrderIdCounter = new AtomicInteger(0)
-
-def mathContext = new MathContext(2, RoundingMode.HALF_UP)
-
-@Canonical class Person {
-
-  def id
-  def name
-  def address
-  def age
-  def memberSince
-
-  def toCypherCreate() {
-    "(:${GraphKeys.instance.personNodeType} {id: ${id}, name:\"${name}\",age:${age},address:\"${address}\",memberSince:\"${memberSince}\"})"
-  }
-}
-
-@Canonical class Product {
-
-  def id
-  def name
-  def manufacturer
-  def msrp
-
-  def toCypherCreate() {
-    "(:${GraphKeys.instance.productNodeType} {id: ${id},name:\"${name}\",manufacturer:\"${manufacturer}\",msrp:'${msrp}'})"
-  }
-}
-
-@Canonical class Order {
-
-  def id
-  def subTotal
-  def tax
-  def shipping
-  def total
-
-  def toCypherCreate() {
-    "(:${GraphKeys.instance.orderNodeType} {id: ${id},subTotal:${subTotal},tax:${tax},shipping:${shipping},total:${total}})"
-  }
-}
-
-@Canonical class Event {
-
-  def product
-  def type
-  def time
-}
+```shell script
+➜  ~ docker run -it --network host --rm redis redis-cli -h 127.0.0.1
+127.0.0.1:6379> monitor
+OK
+1589518567.962973 [0 172.17.0.1:39190] "graph.QUERY" "prodrec" "create index on :person(id)" "--COMPACT"
+1589518567.980113 [0 172.17.0.1:39190] "graph.QUERY" "prodrec" "create index on :product(id)" "--COMPACT"
+1589518567.984275 [0 172.17.0.1:39190] "graph.QUERY" "prodrec" "create index on :order(id)" "--COMPACT"
+1589518568.577378 [0 172.17.0.1:39190] "graph.QUERY" "prodrec" "CREATE (:person {id: 5, name:\"Thomas Murazik\",age:51,address:\"77917 Laurena Manor, Durganstad, NC 21122\",memberSince:\"2001-12-22T21:56:08.558384\"})" "--COMPACT"
+1589518568.587073 [0 172.17.0.1:39204] "graph.QUERY" "prodrec" "CREATE (:person {id: 4, name:\"Reid Pouros\",age:74,address:\"Suite 726 867 Micheal Walks, North Jere, HI 37697-5232\",memberSince:\"2015-01-11T21:56:08.556150\"})" "--COMPACT"
+1589518568.588166 [0 172.17.0.1:39206] "graph.QUERY" "prodrec" "CREATE (:person {id: 2, name:\"Amos Pfeffer\",age:71,address:\"Apt. 009 7298 Murazik Inlet, New Bea, AK 80809\",memberSince:\"2015-02-21T21:56:08.552424\"})" "--COMPACT"
+1589518568.589285 [0 172.17.0.1:39200] "graph.QUERY" "prodrec" "CREATE (:person {id: 3, name:\"Warren Lebsack\",age:18,address:\"43074 McGlynn Manors, Lake Juliustown, NC 81978\",memberSince:\"2008-11-09T21:56:08.554088\"})" "--COMPACT"
+1589518568.590025 [0 172.17.0.1:39202] "graph.QUERY" "prodrec" "CREATE (:person {id: 1, name:\"Nakia Medhurst\",age:74,address:\"Suite 751 4111 Goldner Plaza, Bergstrommouth, CT 82975-2395\",memberSince:\"2010-12-17T21:56:08.550949\"})" "--COMPACT"
+1589518568.590740 [0 172.17.0.1:39190] "graph.QUERY" "prodrec" "CREATE (:person {id: 6, name:\"Lia Cormier\",age:36,address:\"7354 Rowe Burgs, East Garrettville, KY 36935-1834\",memberSince:\"2014-02-17T21:56:08.561472\"}),(:person {id: 7, name:\"Kami Barrows\",age:73,address:\"23466 Farrell Lights, New Rosechester, AL 16156-1743\",memberSince:\"2005-01-24T21:56:08.563581\"}),(:person {id: 8, name:\"Miquel Hoeger\",age:48,address:\"80943 Kayleen Garden, East Gregorio, WA 35273-0323\",memberSince:\"2015-10-17T21:56:08.565609\"}),(:person {id: 9, name:\"Sonny Bechtelar\",age:71,address:\"91795 Randy Course, Jeremyton, ME 73938\",memberSince:\"2002-08-27T21:56:08.568028\"})" "--COMPACT"
+1589518568.591365 [0 172.17.0.1:39210] "graph.QUERY" "prodrec" "CREATE (:person {id: 0, name:\"Dominique Boyle\",age:80,address:\"Apt. 903 0812 Williamson Garden, Lake Justineberg, MN 66033-9020\",memberSince:\"2006-03-29T21:56:08.343678\"})" "--COMPACT"
+1589518568.598528 [0 172.17.0.1:39204] "graph.QUERY" "prodrec" "CREATE (:person {id: 10, name:\"Gilberto McKenzie\",age:94,address:\"1170 Candida Ways, Sengerstad, IL 14026-2275\",memberSince:\"2019-03-04T21:56:08.572586\"}),(:person {id: 11, name:\"Fredric Davis\",age:71,address:\"Apt. 167 19608 Reichel Squares, Lake Courtneychester, VT 29560\",memberSince:\"2011-07-23T21:56:08.576044\"}),(:person {id: 12, name:\"Aaron DuBuque\",age:77,address:\"57721 Evangelina Prairie, South Hueyfurt, MA 50369\",memberSince:\"2006-07-13T21:56:08.579893\"}),(:person {id: 13, name:\"Jaymie Hackett\",age:78,address:\"Suite 086 6574 Price Branch, North Duane, NE 13841-6676\",memberSince:\"2020-01-10T21:56:08.581632\"})" "--COMPACT"
+1589518568.599720 [0 172.17.0.1:39206] "graph.QUERY" "prodrec" "CREATE (:person {id: 14, name:\"Bong Harber\",age:16,address:\"Suite 091 4974 Milo Stream, Port Aldobury, CA 13766-7737\",memberSince:\"2016-08-10T21:56:08.583292\"})" "--COMPACT"
+1589518568.607787 [0 172.17.0.1:39190] "graph.QUERY" "prodrec" "CREATE (:person {id: 15, name:\"Shoshana Shanahan\",age:49,address:\"Suite 244 6170 Bryanna Parks, South Wilfredo, OH 14122-4197\",memberSince:\"2015-08-08T21:56:08.589217\"})" "--COMPACT"
+1589518568.612820 [0 172.17.0.1:39206] "graph.QUERY" "prodrec" "CREATE (:person {id: 16, name:\"Jonathon Ward\",age:66,address:\"Suite 517 605 Arlie Greens, Wiegandborough, TX 71956-0802\",memberSince:\"2019-03-03T21:56:08.593040\"})" "--COMPACT"
+1589518568.613971 [0 172.17.0.1:39204] "graph.QUERY" "prodrec" "CREATE (:person {id: 17, name:\"Dino Fisher\",age:32,address:\"Apt. 627 97371 Ashly Terrace, North Darwinside, WI 92060-5607\",memberSince:\"2010-11-27T21:56:08.596312\"})" "--COMPACT"
+1589518568.615046 [0 172.17.0.1:39190] "graph.QUERY" "prodrec" "CREATE (:person {id: 18, name:\"Lashandra Koch\",age:54,address:\"Apt. 716 750 Bartoletti Springs, South Delta, LA 87610-1813\",memberSince:\"2003-07-20T21:56:08.597432\"})" "--COMPACT"
+1589518568.616852 [0 172.17.0.1:39210] "graph.QUERY" "prodrec" "CREATE (:person {id: 19, name:\"King Yost\",age:34,address:\"950 Robel Meadows, Reichelburgh, NM 86969\",memberSince:\"2015-05-04T21:56:08.600070\"})" "--COMPACT"
+1589518568.621137 [0 172.17.0.1:39202] "graph.QUERY" "prodrec" "CREATE (:person {id: 20, name:\"Shanta Bogisich\",age:68,address:\"Suite 000 6685 Sporer Circle, West Robert, MT 48202-9460\",memberSince:\"2015-08-24T21:56:08.603044\"})" "--COMPACT"
+1589518568.623978 [0 172.17.0.1:39206] "graph.QUERY" "prodrec" "CREATE (:person {id: 21, name:\"Daniel Abshire\",age:18,address:\"0790 Koss Neck, New Dedeside, OK 23288-6408\",memberSince:\"2019-02-27T21:56:08.606614\"})" "--COMPACT"
+1589518568.626905 [0 172.17.0.1:39210] "graph.QUERY" "prodrec" "CREATE (:person {id: 22, name:\"Clementina Kunze\",age:97,address:\"8772 Johnson Branch, New Estelahaven, UT 48620\",memberSince:\"2007-12-08T21:56:08.608716\"})" "--COMPACT"
 ```
 
-3. Jedis opens a pool to redis and Redis Graph initializes itself from that pool.
+### Don't forget to Save
 
-```groovy
-def db = cliOptions.database
+Just like anything else in Redis, it's easy enough to point-in-time snapshot data to disk via `save`:
 
-// setup jedis and graph
-def threadCount = cliOptions.threadCount as Integer
-def config = new GenericObjectPoolConfig()
-config.setMaxTotal(threadCount)
-def jedisPool = new JedisPool(config, cliOptions.redisHost, cliOptions.redisPort as Integer)
-def graph = new RedisGraph(jedisPool)
-
-// index creation
-graph.query(db, "create index on :${GraphKeys.instance.personNodeType}(id)")
-graph.query(db, "create index on :${GraphKeys.instance.productNodeType}(id)")
-graph.query(db, "create index on :${GraphKeys.instance.orderNodeType}(id)")
+```shell script
+➜  ~ docker run -it --network host --rm redis redis-cli -h 127.0.0.1
+127.0.0.1:6379> save
+OK
+(0.68s)
 ```
 
-4. The script spins up a number of threads for creation of the foundational nodes (a) people and (b) products and waits for generation of the these objects from the faker
+...and, if you're running RedisGraph in a docker image with a volume specified, the next time you start your generated graph data will be there.
 
-```groovy
-def now = LocalDateTime.now()
+```shell script
+➜  ~ docker run -p 6379:6379 -it --rm -v redis-data:/data redislabs/redisgraph
+1:C 15 May 2020 04:59:39.532 # oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+1:C 15 May 2020 04:59:39.533 # Redis version=5.0.9, bits=64, commit=00000000, modified=0, pid=1, just started
+1:C 15 May 2020 04:59:39.533 # Configuration loaded
+                _._                                                  
+           _.-``__ ''-._                                             
+      _.-``    `.  `_.  ''-._           Redis 5.0.9 (00000000/0) 64 bit
+  .-`` .-```.  ```\/    _.,_ ''-._                                   
+ (    '      ,       .-`  | `,    )     Running in standalone mode
+ |`-._`-...-` __...-.``-._|'` _.-'|     Port: 6379
+ |    `-._   `._    /     _.-'    |     PID: 1
+  `-._    `-._  `-./  _.-'    _.-'                                   
+ |`-._`-._    `-.__.-'    _.-'_.-'|                                  
+ |    `-._`-._        _.-'_.-'    |           http://redis.io        
+  `-._    `-._`-.__.-'_.-'    _.-'                                   
+ |`-._`-._    `-.__.-'    _.-'_.-'|                                  
+ |    `-._`-._        _.-'_.-'    |                                  
+  `-._    `-._`-.__.-'_.-'    _.-'                                   
+      `-._    `-.__.-'    _.-'                                       
+          `-._        _.-'                                           
+              `-.__.-'                                               
 
-// people and products have to be first created so we can query on them in a second round for orders and edges
-def personProductQueue = new ConcurrentLinkedQueue()
-def personProductLatch = new CountDownLatch(threadCount)
-
-def queue = new ConcurrentLinkedQueue()
-def peopleToCreate = random.nextInt(minPotentialPeopleToCreate, maxPotentialPeopleToCreate)
-def productsToCreate = random.nextInt(minPotentialProductsToCreate, maxPotentialProductsToCreate)
-def generationDone = new AtomicBoolean(false)
-def createCount = new AtomicInteger(0)
-
-// spin up threads to do the work
-threadCount.times {
-
-  Thread.start {
-
-    while (personProductLatch.count > 0L) {
-
-      def query = personProductQueue.poll()
-      def batchCounter = 0
-      def batchedInserts = []
-
-      // as redis slows with load we become more efficient at batching nodes created against the graph
-      while (query && batchCounter < nodeCreationBatchSize) {
-        batchedInserts << query
-        batchCounter++
-        query = personProductQueue.poll()
-      }
-
-      if (batchedInserts) {
-        graph.query(db, "CREATE ${batchedInserts.collect { record -> record.toCypherCreate()}.join(',')}")
-        createCount.addAndGet(batchedInserts.size())
-      }
-
-      if (!query && generationDone.get()) {
-        personProductLatch.countDown()
-      }
-    }
-  }
-}
+1:M 15 May 2020 04:59:39.536 # WARNING: The TCP backlog setting of 511 cannot be enforced because /proc/sys/net/core/somaxconn is set to the lower value of 128.
+1:M 15 May 2020 04:59:39.537 # Server initialized
+1:M 15 May 2020 04:59:39.537 # WARNING you have Transparent Huge Pages (THP) support enabled in your kernel. This will create latency and memory usage issues with Redis. To fix this issue run the command 'echo never > /sys/kernel/mm/transparent_hugepage/enabled' as root, and add it to your /etc/rc.local in order to retain the setting after a reboot. Redis must be restarted after THP is disabled.
+1:M 15 May 2020 04:59:39.546 * <graph> Thread pool created, using 6 threads.
+1:M 15 May 2020 04:59:39.547 * Module 'graph' loaded from /usr/lib/redis/modules/redisgraph.so
+1:M 15 May 2020 04:59:45.442 * DB loaded from disk: 5.894 seconds
+1:M 15 May 2020 04:59:45.442 * Ready to accept connections
 ```
 
-5. A progressbar is initialized to show visual status of ^^^
+### Next up
 
-```groovy
-// thread used to track progress
-Thread.start {
-
-  def targetProgress = peopleToCreate + productsToCreate
-
-  new ProgressBar("(:${GraphKeys.instance.personNodeType}) and (:${GraphKeys.instance.productNodeType})", targetProgress, progressBarUpdateInterval).withCloseable { progressBar ->
-
-    while (personProductLatch.count > 0L) {
-      progressBar.stepTo(createCount.get())
-    }
-
-    progressBar.stepTo(targetProgress)
-  }
-}
-```
-
-6. The faker begins generating (a) people and (b) products and the threads begin using `CREATE` statements against the graph
-
-```groovy
-
-// create the latch and second queue for processing
-def peopleForOrderAndEdgesQueue = new ConcurrentLinkedQueue()
-def orderAndEdgesLatch = new CountDownLatch(threadCount)
-
-// generate the people and products, here is where the prior threads begin doing their work
-peopleToCreate.times { num ->
-  def address = mainThreadFaker.address()
-  def person = new Person(id: num, name: "${address.firstName()} ${address.lastName()}", address: address.fullAddress(), age: random.nextInt(10, 100), memberSince: LocalDateTime.now().minusDays(random.nextInt(1, maxPastDate) as Long))
-  personProductQueue.offer(person)
-  peopleForOrderAndEdgesQueue.offer(person)
-}
-
-def products = new ArrayList(productsToCreate)
-productsToCreate.times { num ->
-  def product = new Product(id: num, name: mainThreadFaker.commerce().productName(), manufacturer: mainThreadFaker.company().name(), msrp: mainThreadFaker.commerce().price(minPerProductPrice, maxPerProductPrice) as Double)
-  products << product
-  personProductQueue.offer(product)
-}
-```
-
-7. A gate, a latch, is reached while we wait for all ^^^ processing to finish...
-
-```groovy
-// signal to prior threads that generation is complete
-generationDone.set(true)
-
-// waiting for all threads to complete before continuing to order node and edge creation
-personProductLatch.await()
-```
-
-8. We then iterate over the people who've been placed in another queue for processing across another "pool" (not a pool, technically) of threads
-9. In each thread is where the majority of the random generation of edges resides, which is why we need to wait for those foundational nodes to be generated first. (This could have been done with `MERGE` operation, but...) Most of the RedisGraph operators in this section are `CREATE` and bounded creates (my words), specifically, `MATCH ... CREATE`.
-
-```groovy
-threadCount.times {
-
-  Thread.start { thread ->
-
-    def threadRandom = new SplittableRandom()
-
-    while (!peopleForOrderAndEdgesQueue.empty) {
-
-      def person = peopleForOrderAndEdgesQueue.poll()
-
-      def views = threadRandom.nextInt(minPotentialViews, maxPotentialViews)
-      def viewedProducts = [] as Set
-      def minutesFromMemberSinceToNow = person.memberSince.until(now, ChronoUnit.MINUTES)
-
-      // generate random value up to max potential views and drop those into a unique set
-      views.times {
-        viewedProducts << products.get(threadRandom.nextInt(products.size()))
-      }
-
-      def viewEvents = viewedProducts.collect { product ->
-        new Event(product: product, type: GraphKeys.instance.viewEdgeType, time: person.memberSince.plusMinutes(threadRandom.nextInt(1, minutesFromMemberSinceToNow as Integer) as Long))
-      }
-
-      if (viewEvents) {
-
-        // this pulls a percentage of viewed products into add to cart events
-        def addedToCartEvents = viewEvents.findAll {
-          threadRandom.nextInt(100) <= percentageOfViewsToAddToCart
-        }.collect { event ->
-          new Event(product: event.product, type: GraphKeys.instance.addToCartEdgeType, time: event.time.plusMinutes(threadRandom.nextInt(1, maxRandomTimeFromViewToAddToCartInMinutes) as Long))
-        }
-
-        // purchasedEvents
-        def purchasedEvents = addedToCartEvents.findAll {
-          threadRandom.nextInt(100) <= percentageOfAddToCartToPurchase
-        }
-
-        def addedToCartEventEdges = ''
-
-        if (addedToCartEvents) {
-
-          def joinedAddToCartEdges = addedToCartEvents.collect { event ->
-            "(p)-[:${event.type} {time: '${event.time}'}]->(prd${event.product.id})"
-          }.join(', ')
-          addedToCartEventEdges = ", ${joinedAddToCartEdges}"
-
-          if (purchasedEvents) {
-
-            purchasedEvents.collate(threadRandom.nextInt(0, purchasedEvents.size())).collect { subSetOfPurchasedEvents ->
-
-              def productsInOrder = subSetOfPurchasedEvents.collect { event -> event.product }
-              def oldestPurchasedEvent = subSetOfPurchasedEvents.max { event -> event.time }
-              def subTotalOfProducts = productsInOrder.collect { product -> product.msrp }.sum()
-              def taxAddition = new BigDecimal(subTotalOfProducts, mathContext).multiply(new BigDecimal(threadRandom.nextDouble(minTaxRate, maxTaxRate), mathContext))
-              def shipAddition = new BigDecimal(subTotalOfProducts, mathContext).multiply(new BigDecimal(threadRandom.nextDouble(minShipRate, maxShipRate), mathContext))
-
-              def order = new Order(id: globalOrderIdCounter.incrementAndGet(), subTotal: subTotalOfProducts, tax: taxAddition, shipping: shipAddition, total: subTotalOfProducts + taxAddition + shipAddition)
-
-              graph.query(db, "CREATE ${order.toCypherCreate()}")
-
-              // we have to match across all the products
-              def productMatchDefinitionParams = productsInOrder.collect { product ->
-                "(prd${product.id}:${GraphKeys.instance.productNodeType})"
-              }.join(', ')
-
-              def productMatchCriteria = productsInOrder.collect { product ->
-                "prd${product.id}.id=${product.id}"
-              }.join(' AND ')
-
-              def productEdges = productsInOrder.collect { product ->
-                "(o)-[:contain]->(prd${product.id})"
-              }.join(', ')
-
-              def query = "MATCH (p:${GraphKeys.instance.personNodeType}), (o:${GraphKeys.instance.orderNodeType}), ${productMatchDefinitionParams} WHERE p.id=${person.id} AND o.id=${order.id} AND ${productMatchCriteria} CREATE (p)-[:${GraphKeys.instance.transactEdgeType}]->(o), ${productEdges}"
-
-              graph.query(db, query)
-            }
-          }
-        }
-
-        // we have to match across all the products
-        def productMatchDefinitionParams = viewEvents.collect { event ->
-          "(prd${event.product.id}:${GraphKeys.instance.productNodeType})"
-        }.join(', ')
-
-        def productMatchCriteria = viewEvents.collect { event ->
-          "prd${event.product.id}.id=${event.product.id}"
-        }.join(' AND ')
-
-        def viewedEdges = viewEvents.collect { event ->
-          "(p)-[:${event.type} {time: '${event.time}'}]->(prd${event.product.id})"
-        }.join(', ')
-
-        def query = "MATCH (p:${GraphKeys.instance.personNodeType}), ${productMatchDefinitionParams} WHERE p.id=${person.id} AND ${productMatchCriteria} CREATE ${viewedEdges}${addedToCartEventEdges}"
-
-        graph.query(db, query)
-      }
-    }
-
-    orderAndEdgesLatch.countDown()
-  }
-}
-```
-
-10. A progressbar is initialized to show visual status of ^^^
-
-```groovy
-// progress tracker for order node and edge creation, separate thread isn't needed as main thread reaches this as prior threads spin up
-new ProgressBar("(:${GraphKeys.instance.orderNodeType}), [:${GraphKeys.instance.viewEdgeType}], [:${GraphKeys.instance.addToCartEdgeType}], [:${GraphKeys.instance.transactEdgeType}], and [:${GraphKeys.instance.containEdgeType}]", peopleToCreate, progressBarUpdateInterval).withCloseable { progressBar ->
-
-  while (orderAndEdgesLatch.count > 0L) {
-    progressBar.stepTo(peopleToCreate - peopleForOrderAndEdgesQueue.size())
-  }
-}
-```
-
-The output of the progressbar and app itself looks like:
-
-```
-./generateCommerceGraph
-(:person) and (:product) 100% │██████████████████████████████████████████████████████│ 6000/6000 (0:00:02 / 0:00:00)
-(:order), [:view], [:addtocart], [:transact], and [:contain]  36% │██████▌           │ 1825/5000 (0:00:08 / 0:00:15)
-```
-
-Early next week I'll go over basic queries and cover the crude pass at product recommendations and the load test tooling created for those efforts.
-
-Cheers!
+In a few weeks I'll have a post on querying and making sense of the data. Stay tuned!
