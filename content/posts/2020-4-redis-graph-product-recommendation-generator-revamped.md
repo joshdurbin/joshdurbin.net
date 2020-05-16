@@ -44,9 +44,9 @@ the connecting edges.
 
 ```shell script
 ./generateCommerceGraph
-(:person) and (:product) 100% │█████████████████████████████████████████████████████████████████████████│ 6000/6000 (0:00:02 / 0:00:00) 
-(:order), [:view], [:addtocart], [:transact], and [:contain] 100% │█████████████████████████████████████│ 5000/5000 (0:00:59 / 0:00:00) 
-Finished creating 5000 'person', 1000 'product', 11713 'order', 120153 'view' edges, 31316 'addtocart' edges, 11713 'transact' edges, and 28571 'contain' products edges.
+(:person) and (:product) 100% │███████████████████████████████████████████████████████████│ 6000/6000 (0:00:02 / 0:00:00) 
+(:order), [:view], [:addtocart], [:transact], and [:contain] 100% │███████████████████████│ 5000/5000 (0:00:20 / 0:00:00) 
+Finished creating 5000 'person', 1000 'product', 11662 'order', 118721 'view' edges, 30835 'addtocart' edges, 11662 'transact' edges, and 28007 'contain' products edges.
 ```
 
 There are a number of interesting knobs in the graph generation you can tweak; knobs in probability and lower/upper bounds of things, such as:

@@ -361,16 +361,16 @@ order by orders desc limit 3
     1) 1) "p.id"
        2) "p.name"
        3) "orders"
-    2) 1) 1) (integer) 98
-          2) "Abel Heathcote"
-          3) (integer) 15
-       2) 1) (integer) 1875
-          2) "Masako Smith"
-          3) (integer) 14
-       3) 1) (integer) 1172
-          2) "Antoinette Von"
-          3) (integer) 14
-    3) 1) "Query internal execution time: 45.437700 milliseconds"   
+    2) 1) 1) (integer) 1388
+          2) "Marion Mante"
+          3) (integer) 17
+       2) 1) (integer) 4977
+          2) "Birdie Oberbrunner"
+          3) (integer) 17
+       3) 1) (integer) 1871
+          2) "Towanda Funk"
+          3) (integer) 16
+    3) 1) "Query internal execution time: 55.890400 milliseconds"  
     ```
      
 2. Return the top 3 most ordered products (`id` and `name` properties). This query will match a path where a node of label `order` with
@@ -379,26 +379,26 @@ order by orders desc limit 3
     {{<highlightjs language="cypher">}}
 match (:order)-[c:contain]->(p:product)
 return p.id, p.name, count(c) as count
-order by count limit 3
+order by count desc limit 3
     {{</highlightjs>}}
     
     Executed:
 
     ```
-    127.0.0.1:6379> graph.query prodrec "match (:order)-[c:contain]->(p:product) return p.id, p.name, count(c) as count order by count limit 3"
+    127.0.0.1:6379> graph.query prodrec "match (:order)-[c:contain]->(p:product) return p.id, p.name, count(c) as count order by count desc limit 3"
     1) 1) "p.id"
        2) "p.name"
        3) "count"
-    2) 1) 1) (integer) 696
-          2) "Ergonomic Aluminum Pants"
-          3) (integer) 15
-       2) 1) (integer) 206
-          2) "Synergistic Silk Knife"
-          3) (integer) 15
-       3) 1) (integer) 313
-          2) "Heavy Duty Plastic Plate"
-          3) (integer) 16
-    3) 1) "Query internal execution time: 89.558300 milliseconds"   
+    2) 1) 1) (integer) 592
+          2) "Rustic Paper Hat"
+          3) (integer) 44
+       2) 1) (integer) 203
+          2) "Sleek Silk Lamp"
+          3) (integer) 43
+       3) 1) (integer) 987
+          2) "Intelligent Steel Computer"
+          3) (integer) 43
+    3) 1) "Query internal execution time: 120.565500 milliseconds"
     ```
 
 3. Return the top 3 most viewed products (`id` and `name` properties). This query will match a path where a node of label `person` with
@@ -407,26 +407,26 @@ a directional edge of type `view` with alias `v` to a node of label `product` wi
     {{<highlightjs language="cypher">}}
 match (:person)-[v:view]->(p:product)
 return p.id, p.name, count(v) as count
-order by count limit 3
+order by count desc limit 3
     {{</highlightjs>}}
     
     Executed:
 
     ```
-    127.0.0.1:6379> graph.query prodrec "match (:person)-[v:view]->(p:product) return p.id, p.name, count(v) as count order by count limit 3"
+    127.0.0.1:6379> graph.query prodrec "match (:person)-[v:view]->(p:product) return p.id, p.name, count(v) as count order by count desc limit 3"
     1) 1) "p.id"
        2) "p.name"
        3) "count"
-    2) 1) 1) (integer) 37
-          2) "Incredible Marble Coat"
-          3) (integer) 82
-       2) 1) (integer) 518
-          2) "Mediocre Iron Plate"
-          3) (integer) 82
-       3) 1) (integer) 814
-          2) "Heavy Duty Wool Plate"
-          3) (integer) 87
-    3) 1) "Query internal execution time: 155.783600 milliseconds"   
+    2) 1) 1) (integer) 189
+          2) "Aerodynamic Wool Wallet"
+          3) (integer) 151
+       2) 1) (integer) 39
+          2) "Incredible Silk Lamp"
+          3) (integer) 148
+       3) 1) (integer) 713
+          2) "Small Concrete Lamp"
+          3) (integer) 148
+    3) 1) "Query internal execution time: 160.342500 milliseconds" 
     ```
    
 4. Return the 3 fewest purchased products (`id` and `name` properties). This query will match a path where a node of label `order` with
@@ -435,26 +435,26 @@ a directional edge of type `contain` with alias `c` to a node of label `product`
     {{<highlightjs language="cypher">}}
 match (:order)-[c:contain]->(p:product)
 return p.id, p.name, count(c) as count
-order by count desc limit 3
+order by count limit 3
     {{</highlightjs>}}    
     
     Executed:   
 
     ```
-    127.0.0.1:6379> graph.query prodrec "match (:order)-[c:contain]->(p:product) return p.id, p.name, count(c) as count order by count desc limit 3"
+    127.0.0.1:6379> graph.query prodrec "match (:order)-[c:contain]->(p:product) return p.id, p.name, count(c) as count order by count limit 3"
     1) 1) "p.id"
        2) "p.name"
        3) "count"
-    2) 1) 1) (integer) 65
-          2) "Enormous Wooden Pants"
-          3) (integer) 47
-       2) 1) (integer) 797
-          2) "Synergistic Cotton Knife"
-          3) (integer) 44
-       3) 1) (integer) 442
-          2) "Fantastic Aluminum Clock"
-          3) (integer) 43
-    3) 1) "Query internal execution time: 115.636500 milliseconds"   
+    2) 1) 1) (integer) 763
+          2) "Small Bronze Computer"
+          3) (integer) 12
+       2) 1) (integer) 984
+          2) "Fantastic Plastic Gloves"
+          3) (integer) 13
+       3) 1) (integer) 266
+          2) "Durable Linen Clock"
+          3) (integer) 14
+    3) 1) "Query internal execution time: 125.494000 milliseconds" 
     ```
        
 5. Return products not purchased. This query will match a path for every node of label `product` with alias `p` where no node of label `order` with directional edge
@@ -523,14 +523,13 @@ some action when "on match" or "on create" conditions are met. Take the followin
 the last example each time, we wanted to periodically set them on the nodes themselves.     
 
     {{<highlightjs language="cypher">}}
-match (prod:product)<-[c:contain]-(:order)
-with prod, count(c) as orders
+match (prod:product)<-[c:contain]-(:order) with prod, count(c) as orders
 match (prod)<-[atc:addtocart]-(:person)
 with prod, orders, count(atc) as addstocarts
 match (prod)<-[v:view]-(:person)
 with prod, orders, addstocarts, count(v) as views
 merge (prod)
-on match set prod.num_orders = orders, prod.num_adds_to_carts = addstocarts, prod.num_views = views
+  on match set prod.num_orders = orders, prod.num_adds_to_carts = addstocarts, prod.num_views = views
 return prod.id, orders, addstocarts, views
     {{</highlightjs>}}
    
@@ -768,7 +767,7 @@ The next few posts will be on the topics of performance and further optimization
 The following documents are really useful for getting started with things. It is important to node that Redis Graph is implementing most but (yet) all of the openCypher commands and spec.
 
 1. the [Cypher Query Language Reference (Version 9)](https://s3.amazonaws.com/artifacts.opencypher.org/openCypher9.pdf) from the [OpenCypher resources](http://www.opencypher.org/resources)
-2. the [Cypher Style Guide]() also from the [OpenCypher resources](http://www.opencypher.org/resources)
+2. the [Cypher Style Guide](https://s3.amazonaws.com/artifacts.opencypher.org/M15/docs/style-guide.pdf) also from the [OpenCypher resources](http://www.opencypher.org/resources)
 3. [Redis Graph Commands](https://oss.redislabs.com/redisgraph/commands/) for a full list of supported commands
 4. [Redis Graph Cypher Coverage](https://oss.redislabs.com/redisgraph/cypher_support/) for notes on what commands aren't covered (yet) by Redis Graph
 5. [learn x in y minutes (cypher)](https://learnxinyminutes.com/docs/cypher/)

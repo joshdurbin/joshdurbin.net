@@ -1,7 +1,7 @@
 +++
 date = "2017-04-11T06:44:27-07:00"
 title = "Evaluating API Gateway as a Proxy to internal AWS resources via Lambda and HTTP Proxy"
-chartEnabled = true
+chartjs = true
 tags = [ "aws", "cdn", "infrastructure as code"]
 aliases = [ "/blog/evaluating-api-gateway-as-a-proxy-to-internal-aws-resources-via-lambda-and-http-proxy/", "/blurbs/evaluating-api-gateway-as-a-proxy-to-internal-aws-resources-via-lambda-and-http-proxy/" ]
 +++
@@ -103,7 +103,7 @@ The ELB performance establishes the baseline of throughput for our nginx instanc
   such a little machine. At approximately %22 the performance of the ELB, its clear that the
   Proxy-based API Gateway incurs greater overhead. The Lambda-based API Gateway instances fared even worse, unfortunately.
 
-{{< 2017-04-initial-performance-benchmarks-python-api-gateway-proxy-vs-elb >}}
+{{< chart id="results" title="Performance Test Results" data="/data/2017-04-initial-performance-benchmarks-python-api-gateway-proxy-vs-elb.csv" xaxislabel="Endpoint" xaxisid="endpoint" yaxislabel="Total Requests" yaxisid="requests">}}
 
 For the Lambda-based API Gateways, the increase in memory (and presumably CPU performance) along with additionally
   available network addresses seemed to allow greater throughput. However, in at least two tests ("Lambda-512" and "Lambda-1024"),

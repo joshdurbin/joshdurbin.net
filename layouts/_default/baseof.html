@@ -90,6 +90,11 @@
     {{ hugo.Generator }}
   </head>
 
+  {{ if .Params.chartjs }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datasource@0.1.0"></script>
+  {{ end }}
+
   {{ $csClass := "colorscheme-light" }}
   {{ if eq .Site.Params.colorscheme "dark" }}
     {{ $csClass = "colorscheme-dark" }}
@@ -113,11 +118,15 @@
 
     {{ if .Params.highlightjs }}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.0.3/highlight.min.js"></script>
-    <script type="text/javascript"  src="https://unpkg.com/highlightjs-cypher/dist/cypher.min.js"></script>
+    <script src="https://unpkg.com/highlightjs-cypher/dist/cypher.min.js"></script>
     <script type="text/javascript">
       hljs.initHighlightingOnLoad();
       hljs.registerLanguage('cypher', cypher);
     </script>
+    {{ end }}
+
+    {{ if .Params.mermaidjs }}
+    <script async src="https://unpkg.com/mermaid@8.5.0/dist/mermaid.min.js"></script>
     {{ end }}
 
     {{ template "_internal/google_analytics.html" . }}

@@ -2,8 +2,8 @@
 title = "Load testing an in-memory, reactive, geospatial REST API"
 date = "2017-12-28"
 tags = ["wrk", "ratpack", "rxjava", "reactive"]
-chartEnabled = true
 aliases = [ "/blog/load-testing-an-in-memory-reactive-geospatial-rest-api/", "/blurbs/load-testing-an-in-memory-reactive-geospatial-rest-api/"]
+chartjs = true
 +++
 
 Yesterday I wrote [a project writeup]({{< ref "/posts/2017-12-an-ephemeral-reactive-geospatial-rest-api.md" >}})
@@ -34,7 +34,7 @@ which are real places found in the bay area and available [here](https://github.
 
 The script loads the file reads each line containing a JSON object of a place and then posts that data to the prescribed endpoint.
 
-```
+```lua
 function file_exists(file)
   local f = io.open(file, "rb")
   if f then f:close() end
@@ -84,7 +84,7 @@ The `query_places.sh` script uses the points creating a rectangle over the bay a
 
 I commit number blasphemy by generating random whole numbers and concatenating them to produce coordinate pairs for querying...
 
-```
+```lua
 local random = math.random
 
 request = function()
@@ -118,7 +118,7 @@ The test was then run on the following radiuses for 30 seconds, using 50 connect
 
 ## Query Testing Results ##
 
-{{< 2017-12-load-testing-ephemeral-reactive-geospatial-rest-api >}}
+{{< doubleyaxischart id="results" title="Query Test Results" data="/data/2017-12-load-testing-ephemeral-reactive-geospatial-rest-api.csv" xaxislabel="Distance" yaxislabel="RPS" yaxisid="rps" yaxislabel2="Latency (ms)" yaxisid2="latency">}}
 
 The results show that the R-tree backed REST system is blazingly fast. Even with a 50km query area and 3x the
 data returned of the 1/2km query area, the API returns at a rate of ~13.5k a second w/ 22ms response time.

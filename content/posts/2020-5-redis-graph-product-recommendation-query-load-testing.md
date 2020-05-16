@@ -62,9 +62,9 @@ chmod u+x productRecommendationQueryRunner
 At this point, with RedisGraph available at `localhost:6379`, you can just run `./productRecommendationQueryRunner` to load test against the graph.
 
 ```shell script
-./productRecommendationQueryRunner
-Progress 100% │█████████████████████████████████████████████████████████████████████████████████████████│ 1000/1000 (0:01:16 / 0:00:00) 
-Found a min number of recommended products of 157, avg of 721, and a max of 1927 for 1000 with a query performance p50 424ms, p95 811ms, p99 1067ms
+./productRecommendationQueryRunner 
+Progress 100% │███████████████████████████████████████████████████████████████████████████│ 1000/1000 (0:00:42 / 0:00:00) 
+Found a min number of recommended products of 141, avg of 693, and a max of 1674 for 1000 with a query performance p50 230ms, p95 442ms, p99 531ms
 ```
 
 ### RedisGraph concurrent performance during query 
