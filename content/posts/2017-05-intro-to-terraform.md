@@ -111,7 +111,7 @@ The following block defines a list of CIDRs used for the subnets meant to house 
 zones that are associated with our subnet instances, another subnet CIDR for the EC2 instance, etc... These are
 all used in the later resource definitions.
 
-```
+```terraform
 variable "production_public_elb_subnets" {
   description = "A list of subnet CIDRs to be used for the production, public ELB instances"
   type = "list"
@@ -153,7 +153,7 @@ The following types of data are referenced in the block below:
 - the caller (the access/secret key pair) account ID
 - template data, a static template consisting of no variables, used as the user data argument for an EC2 instance
 
-```
+```terraform
 data "aws_ami" "most_recent_ubuntu_xenial" {
   most_recent = true
 
@@ -217,7 +217,7 @@ to iterate and retrieve this data we rely on the `count` parameter, defined as t
 
 Full example:
 
-```
+```terraform
 resource "aws_vpc" "prod_vpc" {
 
   cidr_block = "${var.production_vpc_cidr}"
@@ -281,7 +281,7 @@ in from the world on port 22 (SSH)
 This section also defines a key pair using the local execution user (you, more than likely) via
 your public key at `~/.ssh/id_rsa.pub`.
 
-```
+```terraform
 resource "aws_key_pair" "keys_to_the_castles" {
   key_name = "castle_keys"
   public_key = "${file("~/.ssh/id_rsa.pub")}"

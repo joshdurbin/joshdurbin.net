@@ -44,7 +44,7 @@ For the most basic example we have the following resources and data in Terraform
 - A launch config (without showing all the networking resources)
 - An ASG
 
-```
+```terraform
 data "aws_ami" "most_recent_ubuntu_xenial" {
 
   most_recent = true
@@ -95,7 +95,7 @@ The following block defines a [Cloudwatch Metric Alarm](https://docs.aws.amazon.
 for the machines in an ASG over a 60 second window and trigger an alarm state when that average
 is >= the treshhold of `75`. This functions as our upper bound...
 
-```
+```terraform
 resource "aws_cloudwatch_metric_alarm" "scaling_app_high" {
 
     alarm_name = "sample-cpu-utilization-exceeds-normal"
@@ -117,7 +117,7 @@ The next block is similar, but with different comparison operators and threshold
 averages over a longer period of time because scale in events should only occur after whatever
 event triggering scale out due to load is over.
 
-```
+```terraform
 resource "aws_cloudwatch_metric_alarm" "scaling_app_low" {
 
     alarm_name = "sample-cpu-utilization-normal"
@@ -147,7 +147,7 @@ and the changes to our ASGs (within the ASG pre-defined lower and upper bounds).
 
 The following two policies achieve scale up by one and down by one via the `ChangeInCapacity` adjustment type:
 
-```
+```terraform
 resource "aws_autoscaling_policy" "scale_out_scaling_app" {
 
     name = "scale-out-cpu-high"
@@ -176,7 +176,7 @@ is simple with the definition of the `alarm_action` array of [ARNs](https://docs
 
 Making these changes yields updated Cloudwatch Metric Alarms...:
 
-```
+```terraform
 resource "aws_cloudwatch_metric_alarm" "scaling_app_high" {
 
     alarm_name = "sample-cpu-utilization-exceeds-normal"
@@ -255,7 +255,7 @@ within the opening and closing multiline `STACK` keyword):
 3. Resources defined
 4. Outputs
 
-```
+```terraform
 resource "aws_cloudformation_stack" "rolling_update_asg" {
 
     name = "asg-rolling-update"
@@ -385,7 +385,7 @@ the Launch Configuration because it's already passed to the Cloudformation templ
 Doing so essentially involves changing the `autoscaling_group_name` attribute on the `aws_autoscaling_policy` resource
 using the Cloudformation template output we just discussed.:
 
-```
+```terraform
 resource "aws_autoscaling_policy" "scale_out_scaling_app" {
 
     name = "scale-out-cpu-high"
@@ -407,7 +407,7 @@ resource "aws_autoscaling_policy" "scale_in_scaling_app" {
 
 ...and changing the `AutoScalingGroupName` dimension on the `aws_cloudwatch_metric_alarm` resource:
 
-```
+```terraform
 resource "aws_cloudwatch_metric_alarm" "scaling_app_high" {
 
     alarm_name = "sample-cpu-utilization-exceeds-normal"

@@ -45,7 +45,7 @@ To handle this, a Rx [PublishSubject](http://reactivex.io/RxJava/javadoc/rx/subj
 are done via interaction with the subject rather than the R-tree itself. The subject
 handles the re-assignment of the tree data structure as it processes each stream (request).
 
-```
+```groovy
 tree = R-treeBuilder.create()
 
 subject = PublishSubject.create()
@@ -76,7 +76,7 @@ that derive from the tree. This results in query performance that's really quite
 but at the cost of memory, CPU, and data durability. Query operations against the R-tree are
 a bit costlier as they perform distance calculations against the returning Observable stream.
 
-```
+```groovy
 Observable<PlaceWithDistance> findPlacesNear(Double latitude, Double longitude, Double searchRadius) {
 
   final Point geographicPoint = Geometries.pointGeographic(latitude, longitude)

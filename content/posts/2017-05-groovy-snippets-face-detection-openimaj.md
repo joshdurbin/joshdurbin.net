@@ -16,7 +16,7 @@ detection algorithms in its library. For this exercise, we use the:
 The results of the script were used to narrow the possible matches within the dataset prior
 to execution, leveraging cloud infrastructures.
 
-```
+```groovy
 #!/usr/bin/env groovy
 
 @GrabResolver(name='OpenIMAJ Maven Repo', root='http://maven.openimaj.org')

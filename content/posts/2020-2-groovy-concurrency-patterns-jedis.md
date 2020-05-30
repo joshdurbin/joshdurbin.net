@@ -2,6 +2,7 @@
 title = "Groovy/Java concurrency patterns with Jedis"
 date = "2020-02-19"
 tags = ["groovy", "concurrency", "redis"]
+chartjs = true
 +++
 
 Building on the example of a [prior post]({{< ref "/posts/2020-1-redis-graph-product-recommendation-part-1-data-loading.md" >}}), this covers creating a simple, succinct process for concurrently
@@ -358,3 +359,7 @@ some basic optimizations in those Threads like:
 3. If the queue doesn't have anything for the Thread to work on, check if the finished atomic boolean is set to true and if so, exit
 
 With these modifications and much smaller pool of workers, `10` we're able to insert 100k entries, in 4 seconds: `7.02s user 0.41s system 184% cpu 4.024 total`.
+
+Overall, the improvement with each iterative changes is pretty dramatic.
+
+{{< doubleyaxischart id="results" title="Performance, Timing Tests" data="/data/2020-2-groovy-concurrency-patterns-jedis.csv" xaxislabel="Test" yaxislabel="Time (s)" yaxisid="CPU Load" yaxislabel2="Latency (ms)" yaxisid2="latency">}}

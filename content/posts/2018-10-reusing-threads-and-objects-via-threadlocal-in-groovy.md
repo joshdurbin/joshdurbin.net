@@ -40,6 +40,14 @@ single Thread and any runnable body of work at any given time.
 The following code illustrates the aforementioned concepts:
 
 ```groovy
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.ThreadFactory
+import java.util.Random
+import java.lang.ThreadLocal
+
 def loops = 10
 
 class ExpensiveToConstructObject {
@@ -55,7 +63,7 @@ class ExpensiveToConstructObject {
 
 class ReusableThread extends Thread {
   static def expensiveObject = ThreadLocal.withInitial({
-    new ExpensiveToConstructObject()
+    new ExpensiveToConstructObject()         // construct the expensive object
   })
   ReusableThread(Runnable runnable) {
     super(runnable)
@@ -72,17 +80,24 @@ class ReusableThreadFactory implements ThreadFactory {
   }
 }
 
-def executor = new ThreadPoolExecutor(1, 2, 5, TimeUnit.SECONDS, new LinkedBlockingQueue(5),
-  new ReusableThreadFactory(), new ThreadPoolExecutor.CallerRunsPolicy())
+def executor = new ThreadPoolExecutor(
+  1,                                          // starting number of threads
+  2,                                          // max number of threads
+  5,                                          // wait time value
+  TimeUnit.SECONDS,                           // wait time unit
+  new LinkedBlockingQueue(5),                 // queue implementation and size
+  new ReusableThreadFactory(),                // uses our thread factory ^^^
+  new ThreadPoolExecutor.CallerRunsPolicy())  // blocks the caller if the queue blocks
 
 def latch = new CountDownLatch(loops)
 
+println "submitting jobs..."
+
 loops.times {
-  println "submitting job"
   executor.submit {
-    latch.countDown()
+		latch.countDown()
     def expensiveObject = ReusableThread.expensiveObject.get()
-    expensiveObject.doThing()
+    expensiveObject.doThing() // do thing with an expensive object
   }
 }
 
@@ -139,6 +154,102 @@ At this point we also observe the behavior of the filled queue and `ThreadPoolEx
 the submission of new jobs. Though there aren't many jobs submitted to this executor, we do observe thread
 re-use and confirmed thread, variable passing behavior made possible by ThreadLocal.    
 
-The full source of this example is [here](https://github.com/joshdurbin/blog_post_groovy_scripts/blob/master/threadlocal_groovy_post-1.groovy),
-with another example [here](https://github.com/joshdurbin/blog_post_groovy_scripts/blob/master/threadlocal_groovy_post-2.groovy).
-   
+The following example renders the thread id, loop count, and pause time designated per thread.     
+
+```groovy
+@Grapes(@Grab(group='com.google.guava', module='guava', version='26.0-jre'))
+
+import java.util.concurrent.atomic.LongAdder
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.ThreadFactory
+import java.util.Random
+import java.lang.ThreadLocal
+import com.google.common.base.Stopwatch
+
+class ReusableThread extends Thread {
+  static def sleepDuration = ThreadLocal.withInitial({new Random().nextInt(1_000)})
+  ReusableThread(Runnable runnable) {
+    super(runnable)
+  }
+  void run() {
+    super.run()
+  }
+}
+
+class ReusableThreadFactory implements ThreadFactory {
+  Thread newThread(Runnable runnable) {
+    new ReusableThread(runnable)
+  }
+}
+
+def executor = new ThreadPoolExecutor(
+  5,                                          // starting number of threads
+  25,                                         // max number of threads
+  5,                                          // wait time value
+  TimeUnit.SECONDS,                           // wait time unit
+  new LinkedBlockingQueue(50),                // queue implementation and size
+  new ReusableThreadFactory(),                // uses our thread factory ^^^
+  new ThreadPoolExecutor.CallerRunsPolicy())  // blocks the caller if the queue blocks
+
+def sleepTimeCounts = new ConcurrentHashMap()
+def sleepTimeToThreadId = new ConcurrentHashMap()
+def latch = new CountDownLatch(1_000)         // prevent progression to output until done
+def stopwatch = Stopwatch.createStarted()     // overall timing
+
+1_000.times {
+  executor.submit {
+    latch.countDown()
+    def sleepDuration = ReusableThread.sleepDuration.get()
+    sleepTimeCounts.computeIfAbsent(sleepDuration, { k -> new LongAdder() }).increment()
+    sleepTimeToThreadId.computeIfAbsent(sleepDuration, { k -> Thread.currentThread().getId() })
+    sleep(sleepDuration as Long)
+  }
+}
+
+latch.await()
+executor.shutdown()
+
+def sleepTimeOutput = 'thread id %-5d completed %-5d times, sleeping %-5dms %n'
+
+sleepTimeCounts.each { sleepTime, counter ->
+  System.out.format(sleepTimeOutput, sleepTimeToThreadId.get(sleepTime), counter.intValue(), sleepTime)
+}
+
+println "----> ${sleepTimeCounts.values().sum()} threads finished in ${stopwatch.elapsed(TimeUnit.MILLISECONDS)} ms"
+```
+
+Results:
+
+```text
+thread id 29    completed 35    times, sleeping 193  ms 
+thread id 28    completed 88    times, sleeping 75   ms 
+thread id 30    completed 17    times, sleeping 396  ms 
+thread id 36    completed 33    times, sleeping 205  ms 
+thread id 21    completed 11    times, sleeping 655  ms 
+thread id 34    completed 82    times, sleeping 80   ms 
+thread id 32    completed 46    times, sleeping 146  ms 
+thread id 33    completed 9     times, sleeping 791  ms 
+thread id 31    completed 88    times, sleeping 154  ms 
+thread id 19    completed 20    times, sleeping 346  ms 
+thread id 17    completed 20    times, sleeping 347  ms 
+thread id 26    completed 220   times, sleeping 28   ms 
+thread id 18    completed 7     times, sleeping 991  ms 
+thread id 24    completed 24    times, sleeping 287  ms 
+thread id 35    completed 31    times, sleeping 223  ms 
+thread id 1     completed 29    times, sleeping 225  ms 
+thread id 25    completed 16    times, sleeping 422  ms 
+thread id 15    completed 65    times, sleeping 102  ms 
+thread id 13    completed 9     times, sleeping 814  ms 
+thread id 23    completed 9     times, sleeping 752  ms 
+thread id 22    completed 23    times, sleeping 304  ms 
+thread id 14    completed 9     times, sleeping 755  ms 
+thread id 16    completed 19    times, sleeping 373  ms 
+thread id 20    completed 36    times, sleeping 186  ms 
+thread id 37    completed 54    times, sleeping 124  ms 
+----> 1000 threads finished in 6858 ms
+```
+

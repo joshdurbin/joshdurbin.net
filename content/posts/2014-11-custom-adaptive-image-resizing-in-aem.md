@@ -36,7 +36,7 @@ be made configurable, but for this implementation they are not.
 The quality enum consists of 3 values; low, med, high which map the resampling quality
 factors in the underlying, re-rendering servlet `AbstractImageServlet`:
 
-```
+```java
 public enum ImageQuality {
 
   LOW(.5),
@@ -68,7 +68,7 @@ an image quality, size, and re-sampling options to a name:
 
 ...with the code:
 
-```
+```java
 public enum ViewPortType {
 
   THUMB("40", 40, ImageQuality.HIGH, true),

@@ -1,0 +1,3 @@
+,single threaded,multi,multi many threads,#1 non greedy,#2 increase CP,#3 pipeline,producer -> consumer
+time (s),143,28,22,22,9.8,4.1,4.0
+load (%),9,30,49,69,145,191,184

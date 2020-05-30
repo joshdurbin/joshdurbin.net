@@ -129,11 +129,7 @@
     <script async src="https://unpkg.com/mermaid@8.5.0/dist/mermaid.min.js"></script>
     {{ end }}
 
-    {{ template "_internal/google_analytics.html" . }}
-
-    {{ if and .Site.Params.fathomAnalytics .Site.Params.fathomAnalytics.siteID }}
-      {{- partial "analytics/fathom" . -}}
-    {{ end }}
+    <script data-goatcounter="https://joshdurbin_net.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 
   </body>
 

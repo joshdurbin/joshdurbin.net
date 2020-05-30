@@ -108,7 +108,7 @@ discovery. There are several types of services in Kubernetes:
 - A NodePort service exposes pods to external traffic by forwarding traffic from a port on each node of the cluster to the container port.
 - A LoadBalancer service also exposes pods to external traffic, as NodePort service does, and additionally supplies load balancer functionality.
 
-```
+```yaml
 apiVersion: v1
 kind: Pod
 metadata:
@@ -157,7 +157,7 @@ A deployment defines a desired state for logical group of pods and replica sets.
 creates new resources or replaces the existing resources, if necessary. A deployment
 can be updated, rolled out, or rolled back.
 
-```
+```yaml
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -210,7 +210,7 @@ A persistent volume claim defines a specific amount of storage requested and spe
 access modes. Kubernetes finds a matching persistent volume and binds it with the
 persistent volume claim.
 
-```
+```yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -282,7 +282,7 @@ StatefulSets also operate according to the Controller pattern. You define your d
 state in a StatefulSet object, and the StatefulSet controller makes any necessary updates
 to the get there from the current state.
 
-```
+```yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -345,7 +345,7 @@ applications through:
 
 ### Config Maps: Environment Vars
 
-```
+```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -378,7 +378,7 @@ spec:
 
 ### Config Maps: Mounted Volumes
 
-```
+```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -422,7 +422,7 @@ Readiness and Liveliness probes:
 2. Container Exec - The Kubelet will execute a command inside your container. If it exits with status 0 it will be considered a success.
 3. TCP Socket - The Kubelet will attempt to open a socket to your container. If it can establish a connection, the container is considered healthy, if it can’t it is considered a failure.
 
-```
+```yaml
 apiVersion: v1
 kind: Pod
 metadata:
@@ -450,7 +450,7 @@ start.
 InitContainers run serially and must all exit cleanly for your regular containers begin
 execution.
 
-```
+```yaml
 apiVersion: v1
 kind: Pod
 metadata:
@@ -488,7 +488,7 @@ etc… A Pod with a CPU limit of .5 is allowed 2x the power of one limited to .2
 
 See [Kubernetes Resource Requests and Limits](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container)
 
-```
+```yaml
 apiVersion: v1
 kind: Pod
 metadata:

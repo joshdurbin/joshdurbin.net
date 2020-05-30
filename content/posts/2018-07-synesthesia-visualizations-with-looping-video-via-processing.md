@@ -43,7 +43,7 @@ video without horribly disrupting the flow of things.
 Make sure the Processing plugin "Syphon", version 2, is installed and you've set the video scan directory to your video(s) location prior to
 running the project.
 
-```
+```java
 import processing.video.Movie;
 import java.util.List;
 import codeanticode.syphon.SyphonServer;

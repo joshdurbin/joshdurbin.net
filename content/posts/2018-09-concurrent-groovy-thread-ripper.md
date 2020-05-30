@@ -18,6 +18,21 @@ Tika is super useful in pre-processing steps, data pipelines, when input type gu
 are critical. 
 
 ```groovy
+#!/usr/bin/env groovy
+
+@Grapes([
+    @Grab(group='org.apache.tika', module='tika-core', version='1.18')
+])
+
+import org.apache.tika.Tika
+
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.LongAdder
+import java.util.concurrent.CountDownLatch
+
+import static groovy.io.FileType.FILES
+
 def cli = new CliBuilder(header: 'MIME Type Reporter', usage:'./mimeReporter <directoryToScan>', width: 100)
 
 def cliOptions = cli.parse(args)
@@ -104,5 +119,3 @@ text/css                                 occurred 53 times
 video/mp4                                occurred 1 times
 ./mimeReporter aem_6.4_author  16.48s user 1.73s system 565% cpu 3.221 total
 ```
-
-For the full source, see this example on [github](https://github.com/joshdurbin/blog_post_groovy_scripts/blob/master/mimeReporter).

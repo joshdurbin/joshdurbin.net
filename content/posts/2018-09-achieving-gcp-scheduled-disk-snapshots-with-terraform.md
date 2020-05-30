@@ -38,7 +38,7 @@ Given a pre-existing policy `snap12keep168` created by a command like:
 
 ...and a Terraform HCL code snippet of:
 
-```hcl-terraform
+```terraform
 variable "snapshot_policy_name" {
   default = "snap12keep168"
 }

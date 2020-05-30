@@ -12,7 +12,7 @@ than about an 1/8. Fortunately I had access to the data on a particular machine 
 Tika to quickly zip through the assets and identify those that met my required
 content types. The script is super simple and identifies PNG and JPEG assets:
 
-```
+```groovy
 #!/usr/bin/env groovy
 
 @Grapes([

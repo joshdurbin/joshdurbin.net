@@ -9,7 +9,7 @@ I've been writing a lot of command line tooling the last few months; mainly at [
 Scripting in Groovy is nice as you can write fairly complex/involved apps using Grapes to
 pull in artifacts via [Maven](https://maven.apache.org) with ease:
 
-```java
+```groovy
 #!/usr/bin/env groovy
 
 @Grapes([
