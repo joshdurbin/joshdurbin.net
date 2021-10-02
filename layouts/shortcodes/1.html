@@ -1,0 +1,91 @@
+<canvas id="{{ .Get "id"}}"></canvas>
+
+<script>
+
+    var barChartData = {
+        labels: ['round 1', 'round 2', 'round 3', 'round 4', 'round 5'],
+        datasets: [{
+            label: 'Add to Cart',
+            backgroundColor: 'rgb(0,0,255)',
+            stack: 'Edges',
+            data: [
+                15302,
+                75187,
+                375447,
+                1881788,
+                9420390
+            ]
+        }, {
+            label: 'Contain',
+            backgroundColor: 'rgb(255,255,0)',
+            stack: 'Edges',
+            data: [
+                13913,
+                68429,
+                342217,
+                1711912,
+                8573118
+            ]
+        }, {
+            label: 'Rating',
+            backgroundColor: 'rgb(0,128,0)',
+            stack: 'Edges',
+            data: [
+                12649,
+                62227,
+                311467,
+                1558109,
+                7802006
+            ]
+        }, {
+            label: 'Transact',
+            backgroundColor: 'rgb(0,128,128)',
+            stack: 'Edges',
+            data: [
+                8110,
+                39268,
+                195576,
+                979710,
+                4899652
+            ]
+        }, {
+            label: 'View',
+            backgroundColor: 'rgb(0,255,128)',
+            stack: 'Edges',
+            data: [
+                59144,
+                289556,
+                1444221,
+                7242070,
+                36224497
+            ]
+        }]
+
+    };
+    window.addEventListener('load', function () {
+        var ctx = document.getElementById('{{ .Get "id"}}').getContext('2d');
+        window.myChart = new Chart(ctx, {
+            type: 'bar',
+            data: barChartData,
+            options: {
+                title: {
+                    display: true,
+                    text: 'Edge Counts'
+                },
+                tooltips: {
+                    mode: 'index',
+                    intersect: false
+                },
+                responsive: true,
+                scales: {
+                    x: {
+                        stacked: true
+                    },
+                    y: {
+                        stacked: true
+                    }
+                }
+            }
+        });
+    });
+</script>

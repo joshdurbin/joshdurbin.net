@@ -1,4 +1,4 @@
-<canvas id="{{ .Get "id"}}"></canvas>
+<canvas asdf={{ .Get "id"}} id="{{ .Get "id"}}"></canvas>
 <script>
     var chartColors = {
         red: 'rgb(255, 99, 132)',
@@ -6,7 +6,7 @@
     };
 
     var color = Chart.helpers.color;
-    var config = {
+    var config{{ .Get "id" | safeJS }} = {
         type: 'bar',
         data: {
             datasets: [{
@@ -56,8 +56,8 @@
         }
     };
 
-    window.onload = function() {
-        var ctx = document.getElementById('{{ .Get "id"}}').getContext('2d');
-        window.myChart = new Chart(ctx, config);
-    };
+    window.addEventListener('load', function () {
+        var ctx{{ .Get "id" | safeJS }} = document.getElementById('{{ .Get "id"}}').getContext('2d');
+        window.myChart{{ .Get "id" | safeJS }} = new Chart(ctx{{ .Get "id" | safeJS }}, config{{ .Get "id" | safeJS }});
+    });
 </script>

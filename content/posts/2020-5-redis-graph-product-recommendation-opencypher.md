@@ -56,7 +56,7 @@ All of the relationships in this POC and post are directed, which are denoted by
 
 ### Graph Generation
 
-The [graph generation](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/master/generateCommerceGraph) tooling runs through two phases to seed and populate the graph:
+The [graph generation](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/bf3f81727dea7dc97b9732e5561fba78f4ea1c77/generateCommerceGraph) tooling runs through two phases to seed and populate the graph:
 
 1. The creation of independent nodes occurs via `create` statements. Three node "varieties" are created: `person`, `product`, and `order`. Technically the "variety" of a node is referred to as a label. 
 We'll step through distinct examples of each node - label creation. The following are the create statements used to insert these nodes into the graph.     

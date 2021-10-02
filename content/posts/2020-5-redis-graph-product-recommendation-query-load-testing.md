@@ -55,7 +55,7 @@ This script requires the installation of Java 11 and Groovy. Dependencies are au
 Pull down the `productRecommendationQueryRunner` script itself:
 
 ```shell script
-wget https://raw.githubusercontent.com/joshdurbin/redis-graph-commerce-poc/master/productRecommendationQueryRunner
+wget https://raw.githubusercontent.com/joshdurbin/redis-graph-commerce-poc/f13f4bffc7782ee74fccf51d5b78973836644c5f/productRecommendationQueryRunner
 chmod u+x productRecommendationQueryRunner
 ```
 
@@ -111,6 +111,6 @@ only the top N products from the recommendation query instead of all.
 ### Next up 
 
 The next post will be a bit more detailed on performance where RedisGraph will be provisioned on cloud compute infrastructure and load tested
-along with various input parameters to the [generateCommerceGraph](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/master/generateCommerceGraph)
-and [productRecommendationQueryRunner](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/master/productRecommendationQueryRunner). Stay tuned!
+along with various input parameters to the [generateCommerceGraph](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/bf3f81727dea7dc97b9732e5561fba78f4ea1c77/generateCommerceGraph)
+and [productRecommendationQueryRunner](https://github.com/joshdurbin/redis-graph-commerce-poc/blob/f13f4bffc7782ee74fccf51d5b78973836644c5f/productRecommendationQueryRunner). Stay tuned!
  

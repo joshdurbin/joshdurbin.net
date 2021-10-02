@@ -1,0 +1,71 @@
+<canvas id="{{ .Get "id"}}"></canvas>
+
+<script>
+
+    var barChartData2 = {
+        labels: ['round 1', 'round 2', 'round 3', 'round 4', 'round 5'],
+        datasets: [{
+            label: 'People',
+            backgroundColor: 'rgb(255, 0, 0)',
+            stack: 'Nodes',
+            data: [
+                5000,
+                24968,
+                124770,
+                623768,
+                3118780,
+            ]
+        }, {
+            label: 'Orders',
+            backgroundColor: 'rgb(255,140,0)',
+            stack: 'Nodes',
+            data: [
+                8110,
+                39268,
+                195576,
+                979710,
+                4899652
+            ]
+        }, {
+            label: 'Products',
+            backgroundColor: 'rgb(255,105,180)',
+            stack: 'Nodes',
+            data: [
+                1000,
+                4991,
+                24944,
+                124747,
+                623749
+            ]
+        }]
+
+    };
+
+    window.addEventListener('load', function () {
+
+        var ctx = document.getElementById('{{ .Get "id"}}').getContext('2d');
+        window.myChart1 = new Chart(ctx, {
+            type: 'bar',
+            data: barChartData2,
+            options: {
+                title: {
+                    display: true,
+                    text: 'Node Counts'
+                },
+                tooltips: {
+                    mode: 'index',
+                    intersect: false
+                },
+                responsive: true,
+                scales: {
+                    x: {
+                        stacked: true
+                    },
+                    y: {
+                        stacked: true
+                    }
+                }
+            }
+        });
+    });
+</script>

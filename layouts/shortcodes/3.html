@@ -1,0 +1,60 @@
+<canvas id="{{ .Get "id"}}"></canvas>
+
+<script>
+    var lineChartData = {
+        labels: ['January', 'February', 'March'],
+        datasets: [{
+            label: 'My First dataset',
+            borderColor: "rgb(54, 162, 235)",
+            backgroundColor: "rgb(54, 162, 235)",
+            fill: false,
+            data: [
+                1,
+                2,
+                3
+            ],
+            yAxisID: 'y',
+        }, {
+            label: 'My Second dataset',
+            borderColor: "rgb(54, 162, 235)",
+            backgroundColor: "rgb(54, 162, 235)",
+            fill: false,
+            data: [
+                1,
+                0,
+                -1
+            ],
+            yAxisID: 'y1'
+        }]
+    };
+
+    window.addEventListener('load', function () {
+
+        var ctx333 = document.getElementById('{{ .Get "id"}}').getContext('2d');
+        window.myLine333 = new Chart(ctx333, {
+            type: 'line',
+            data: lineChartData,
+            options: {
+                responsive: true,
+                hoverMode: 'index',
+                stacked: false,
+                title: {
+                    display: true,
+                    text: 'Chart.js Line Chart - Multi Axis'
+                },
+                scales: {
+                    y: {
+                        type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
+                        display: true,
+                        position: 'left',
+                    },
+                    y1: {
+                        type: 'linear', // only linear but allow scale type registration. This allows extensions to exist solely for log scale for instance
+                        display: true,
+                        position: 'right',
+                    },
+                }
+            }
+        });
+    });
+</script>
